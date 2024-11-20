@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluentbit-config
+  namespace: {{ .Release.Namspace }}
+data:
+  fluent-bit.conf: |
+    [INPUT]
+        Name tail
+        Path /tmp/ray/session_latest/logs/serve/*
+        Tag ray.serve
+        Path_Key true
+        Refresh_Interval 5
+    
+    [OUTPUT]
+        Name stdout
+        Match *

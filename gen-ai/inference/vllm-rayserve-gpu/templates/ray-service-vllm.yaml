@@ -36,6 +36,10 @@ spec:
             ray_actor_options:
               num_cpus: {{ .Values.modelConfig.numOfCPU }}
               num_gpus: {{ .Values.modelConfig.numOfGPU }}
+            logging_config:
+              encoding: "JSON"
+              log_level: "DEBUG"
+              enable_access_log: {{ .Values.service.enableAccessLog }}
   rayClusterConfig:
     rayVersion: '2.32.0' # Should match the Ray version in the image of the containers
     enableInTreeAutoscaling: true
@@ -96,12 +100,34 @@ spec:
               value: http://kube-prometheus-stack-grafana.kube-prometheus-stack.svc:80
             - name: RAY_PROMETHEUS_HOST
               value: http://kube-prometheus-stack-prometheus.kube-prometheus-stack.svc:9090
+          - name: fluentbit
+            image: fluent/fluent-bit:1.9.6
+              # These resource requests for Fluent Bit should be sufficient in production.
+            resources:
+              requests:
+                cpu: 100m
+                memory: 128Mi
+              limits:
+                cpu: 100m
+                memory: 128Mi
+            volumeMounts:
+            - mountPath: /tmp/ray
+              name: ray-logs
+            - mountPath: /fluent-bit/etc/fluent-bit.conf
+              subPath: fluent-bit.conf
+              name: fluentbit-config
           nodeSelector:
             NodeGroupType: x86-cpu-karpenter
             type: karpenter
           volumes:
           - name: ray-logs
             emptyDir: {}
+          - name: fluentbit-config
+            configMap:
+              name: fluentbit-config
+#            hostPath: 
+#              path: /var/log/containers/ray
+#              type: DirectoryOrCreate
     workerGroupSpecs:
     # The pod replicas in this group typed worker
     - groupName: gpu-group
@@ -120,6 +146,9 @@ spec:
               preStop:
                 exec:
                   command: ["/bin/sh", "-c", "ray stop"]
+            volumeMounts:
+            - mountPath: /tmp/ray
+              name: ray-logs
             resources:
               limits:
                 cpu: {{ .Values.modelConfig.numOfCPU }}
@@ -140,9 +169,31 @@ spec:
                 secretKeyRef:
                   name: hf-token
                   key: hf-token
+          - name: fluentbit
+            image: fluent/fluent-bit:1.9.6
+              # These resource requests for Fluent Bit should be sufficient in production.
+            resources:
+              requests:
+                cpu: 100m
+                memory: 128Mi
+              limits:
+                cpu: 100m
+                memory: 128Mi
+            volumeMounts:
+            - mountPath: /tmp/ray
+              name: ray-logs
+            - mountPath: /fluent-bit/etc/fluent-bit.conf
+              subPath: fluent-bit.conf
+              name: fluentbit-config
           nodeSelector:
             NodeGroupType: {{ .Values.service.gpu }}-gpu-karpenter
             type: karpenter
+          volumes:
+          - name: ray-logs
+            emptyDir: {}
+          - name: fluentbit-config
+            configMap:
+              name: fluentbit-config
           # Please add the following taints to the GPU node.
           tolerations:
           - key: "nvidia.com/gpu"
