@@ -1,6 +1,6 @@
 ---
-title: Spark Operator running on Amazon EKS IPv6
-sidebar_position: 6
+title: Spark Operator on EKS with IPv6
+sidebar_position: 3
 ---
 
 This example showcases the usage of Spark Operator running on Amazon EKS in IPv6 mode. the idea is to show and demonstarte running spark workloads on EKS IPv6 cluster.
@@ -23,8 +23,7 @@ Ensure that you have installed the following tools on your machine.
 2. [kubectl](https://Kubernetes.io/docs/tasks/tools/)
 3. [terraform](https://learn.hashicorp.com/tutorials/terraform/install-cli)
 
-
-Before installing the cluster create a EKS IPv6 CNI policy. Follow the instructions from the link below:
+Before installing the cluster create a EKS IPv6 CNI policy. Follow the instructions from the link:
 [AmazonEKS_CNI_IPv6_Policy ](https://docs.aws.amazon.com/eks/latest/userguide/cni-iam-role.html#cni-iam-role-create-ipv6-policy)
 
 ### Clone the repository
