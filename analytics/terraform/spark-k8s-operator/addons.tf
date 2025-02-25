@@ -386,6 +386,26 @@ module "eks_data_addons" {
           rbac:
             # -- Specifies whether to create RBAC resources for the controller.
             create: false
+        prometheus:
+          metrics:
+            enable: true
+            port: 8080
+            portName: metrics
+            endpoint: /metrics
+            prefix: ""
+          # Prometheus pod monitor for controller pods
+          # Note: The kube-prometheus-stack addon must deploy before the PodMonitor CRD is available.
+          #       This can cause the terraform apply to fail since the addons are deployed in parallel
+          # podMonitor:
+          #   # -- Specifies whether to create pod monitor.
+          #   create: true
+          #   labels: {}
+          #   # -- The label to use to retrieve the job name from
+          #   jobLabel: spark-operator-podmonitor
+          #   # -- Prometheus metrics endpoint properties. `metrics.portName` will be used as a port
+          #   podMetricsEndpoint:
+          #     scheme: http
+          #     interval: 5s
       EOT
     ]
   }
@@ -418,12 +438,22 @@ module "eks_data_addons" {
   #---------------------------------------------------------------
   enable_kubecost = true
   kubecost_helm_config = {
-    chart_version       = "2.3.3"
+    chart_version       = "2.6.2"
     values              = [templatefile("${path.module}/helm-values/kubecost-values.yaml", {})]
     repository_username = data.aws_ecrpublic_authorization_token.token.user_name
     repository_password = data.aws_ecrpublic_authorization_token.token.password
   }
 
+  #---------------------------------------------------------------
+  # JupyterHub Add-on
+  #---------------------------------------------------------------
+  enable_jupyterhub = var.enable_jupyterhub
+  jupyterhub_helm_config = {
+    values = [templatefile("${path.module}/helm-values/jupyterhub-singleuser-values.yaml", {
+      jupyter_single_user_sa_name = var.enable_jupyterhub ? kubernetes_service_account_v1.jupyterhub_single_user_sa[0].metadata[0].name : "no-tused"
+    })]
+    version = "3.3.8"
+  }
 }
 
 #---------------------------------------------------------------
@@ -502,6 +532,7 @@ module "eks_blueprints_addons" {
   karpenter_node = {
     iam_role_additional_policies = {
       AmazonSSMManagedInstanceCore = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+      S3TableAccess                = aws_iam_policy.s3tables_policy.arn
     }
   }
   karpenter = {
@@ -643,4 +674,49 @@ resource "aws_secretsmanager_secret" "grafana" {
 resource "aws_secretsmanager_secret_version" "grafana" {
   secret_id     = aws_secretsmanager_secret.grafana.id
   secret_string = random_password.grafana.result
+}
+
+#---------------------------------------------------------------
+# S3Table IAM policy for Karpenter nodes
+# The S3 tables library does not fully support IRSA and Pod Identity as of this writing.
+# We give the node role access to S3tables to work around this limitation.
+#---------------------------------------------------------------
+resource "aws_iam_policy" "s3tables_policy" {
+  name_prefix = "${local.name}-s3tables"
+  path        = "/"
+  description = "S3Tables Metadata access for Nodes"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "VisualEditor0"
+        Effect = "Allow"
+        Action = [
+          "s3tables:UpdateTableMetadataLocation",
+          "s3tables:GetNamespace",
+          "s3tables:GetTableBucket",
+          "s3tables:GetTableBucketMaintenanceConfiguration",
+          "s3tables:GetTableBucketPolicy",
+          "s3tables:CreateNamespace",
+          "s3tables:CreateTable"
+        ]
+        Resource = "arn:aws:s3tables:*:${data.aws_caller_identity.current.account_id}:bucket/*"
+      },
+      {
+        Sid    = "VisualEditor1"
+        Effect = "Allow"
+        Action = [
+          "s3tables:GetTableMaintenanceJobStatus",
+          "s3tables:GetTablePolicy",
+          "s3tables:GetTable",
+          "s3tables:GetTableMetadataLocation",
+          "s3tables:UpdateTableMetadataLocation",
+          "s3tables:GetTableData",
+          "s3tables:GetTableMaintenanceConfiguration"
+        ]
+        Resource = "arn:aws:s3tables:*:${data.aws_caller_identity.current.account_id}:bucket/*/table/*"
+      }
+    ]
+  })
 }
