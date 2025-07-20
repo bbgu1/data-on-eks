@@ -8,7 +8,7 @@ echo "Blueprint: analytics/spark-k8s-operator"
 echo
 
 # Safety check - ensure we're in the right directory
-EXPECTED_PATH="infrastructure/blueprints/analytics/spark-k8s-operator"
+EXPECTED_PATH="blueprints/analytics/spark-k8s-operator"
 CURRENT_PATH=$(pwd | grep -o "$EXPECTED_PATH" || echo "")
 
 if [[ "$CURRENT_PATH" != "$EXPECTED_PATH" ]]; then
@@ -45,12 +45,10 @@ fi
 cd terraform
 
 # Check if terraform state exists
-if [ ! -f ".terraform/terraform.tfstate" ] && [ ! -f "terraform.tfstate" ]; then
+if [ ! -f "terraform.tfstate" ] && [ ! -f "terraform.tfstate.backup" ]; then
     echo "⚠️  No terraform state found - nothing to cleanup"
-    echo "Cleaning local terraform files anyway..."
+    echo "Cleaning local terraform cache anyway..."
     rm -rf .terraform/
-    rm -f .terraform.lock.hcl
-    rm -f terraform.tfstate*
     echo "✅ Local cleanup complete"
     exit 0
 fi
@@ -88,11 +86,10 @@ else
 fi
 
 echo
-echo "=== Step 2: Clean Local State ==="
-echo "🧹 Cleaning terraform state and cache..."
+echo "=== Step 2: Clean Local Cache (Preserving State) ==="
+echo "🧹 Cleaning terraform cache (keeping state files)..."
 rm -rf .terraform/
-rm -f .terraform.lock.hcl
-rm -f terraform.tfstate*
+echo "⚠️  terraform.tfstate files preserved for future use"
 
 echo
 echo "=== Step 3: Manual Cleanup Check ==="

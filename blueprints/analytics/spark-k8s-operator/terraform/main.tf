@@ -40,7 +40,7 @@ provider "kubernetes" {
 }
 
 provider "helm" {
-  kubernetes = {
+  kubernetes {
     host                   = data.aws_eks_cluster.cluster.endpoint
     cluster_ca_certificate = base64decode(data.aws_eks_cluster.cluster.certificate_authority[0].data)
     token                  = data.aws_eks_cluster_auth.cluster.token
@@ -59,7 +59,7 @@ provider "kubectl" {
 # VPC using base module
 #---------------------------------------------------------------
 module "vpc" {
-  source = "../../../../base/vpc"
+  source = "../../../../infrastructure/base/vpc"
   
   name          = local.name
   vpc_cidr      = var.vpc_cidr
@@ -81,7 +81,7 @@ module "vpc" {
 # EKS Cluster using base module
 #---------------------------------------------------------------
 module "eks" {
-  source = "../../../../base/eks"
+  source = "../../../../infrastructure/base/eks"
   
   name                           = local.name
   eks_cluster_version            = var.eks_cluster_version

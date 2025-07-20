@@ -8,7 +8,7 @@ echo "Blueprint: analytics/spark-k8s-operator"
 echo
 
 # Safety check - ensure we're in the right directory
-EXPECTED_PATH="infrastructure/blueprints/analytics/spark-k8s-operator"
+EXPECTED_PATH="blueprints/analytics/spark-k8s-operator"
 CURRENT_PATH=$(pwd | grep -o "$EXPECTED_PATH" || echo "")
 
 if [[ "$CURRENT_PATH" != "$EXPECTED_PATH" ]]; then
