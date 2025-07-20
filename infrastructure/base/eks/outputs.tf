@@ -58,3 +58,18 @@ output "argocd_server_endpoint" {
   description = "ArgoCD server endpoint"
   value       = var.enable_argocd ? "${var.argocd_domain}" : null
 }
+
+output "karpenter_irsa_role_arn" {
+  description = "Karpenter IRSA role ARN"
+  value       = try(module.karpenter_irsa.iam_role_arn, null)
+}
+
+output "karpenter_node_instance_profile" {
+  description = "Karpenter node instance profile name"
+  value       = try(aws_iam_instance_profile.karpenter_node_instance_profile.name, null)
+}
+
+output "spark_operator_irsa_role_arn" {
+  description = "Spark Operator IRSA role ARN"
+  value       = try(module.spark_operator_irsa.iam_role_arn, null)
+}

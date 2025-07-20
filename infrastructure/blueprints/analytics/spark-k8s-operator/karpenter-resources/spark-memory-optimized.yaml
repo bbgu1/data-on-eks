@@ -1,4 +1,4 @@
-apiVersion: karpenter.sh/v1beta1
+apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
   name: spark-memory-optimized
@@ -9,9 +9,12 @@ spec:
       labels:
         type: karpenter
         NodeGroupType: SparkMemoryOptimized
+        workload-type: memory-intensive
+      annotations:
+        karpenter.sh/do-not-consolidate: "true"
     spec:
       nodeClassRef:
-        apiVersion: karpenter.k8s.aws/v1beta1
+        group: karpenter.k8s.aws
         kind: EC2NodeClass
         name: spark-memory-optimized
       
@@ -27,10 +30,10 @@ spec:
           values: ["r"]
         - key: "karpenter.k8s.aws/instance-family"
           operator: In
-          values: ["r5d", "r6i", "r7i"]
+          values: ["r5d", "r6i", "r7i", "r8g"]  # Added r8g for graviton
         - key: "karpenter.k8s.aws/instance-size"
           operator: In
-          values: ["4xlarge", "8xlarge", "12xlarge", "16xlarge"]
+          values: ["4xlarge", "8xlarge", "12xlarge", "16xlarge", "24xlarge"]
         - key: "karpenter.k8s.aws/instance-hypervisor"
           operator: In
           values: ["nitro"]
@@ -38,20 +41,35 @@ spec:
           operator: Gt
           values: ["2"]
       
-      nodePoolLimits:
-        cpu: 1000
-      
-      disruption:
-        consolidationPolicy: WhenEmptyOrUnderutilized
-        consolidateAfter: 1m
+      # Memory workloads need longer startup time
+      expireAfter: 30m
+      terminationGracePeriod: 60s
+  
+  # v1 API: limits moved to top level
+  limits:
+    cpu: 1000
+    memory: 4000Gi
+  
+  disruption:
+    consolidationPolicy: WhenEmptyOrUnderutilized
+    consolidateAfter: 2m  # Longer consolidation for memory workloads
+    budgets:
+      - nodes: 5%  # More conservative for memory workloads
+        schedule: "0 9-17 * * mon-fri"
+      - nodes: 25%
+        schedule: "0 18-8 * * mon-fri"
+  
+  weight: 20  # Higher weight for memory-optimized
         
 ---
-apiVersion: karpenter.k8s.aws/v1beta1
+apiVersion: karpenter.k8s.aws/v1
 kind: EC2NodeClass
 metadata:
   name: spark-memory-optimized
   namespace: karpenter
 spec:
+  role: "KarpenterNodeInstanceProfile-spark-k8s-operator"  # Will be replaced via Kustomize
+  
   amiFamily: AL2023
   amiSelectorTerms:
     - alias: al2023@latest
@@ -60,18 +78,80 @@ spec:
   
   subnetSelectorTerms:
     - tags:
-        karpenter.sh/discovery: "spark-k8s-operator"  # Replace with cluster name
+        karpenter.sh/discovery: "spark-k8s-operator"  # Will be replaced via Kustomize
   
   securityGroupSelectorTerms:
     - tags:
-        karpenter.sh/discovery: "spark-k8s-operator"  # Replace with cluster name
+        karpenter.sh/discovery: "spark-k8s-operator"  # Will be replaced via Kustomize
   
-  role: "KarpenterNodeInstanceProfile-spark-k8s-operator"  # Replace with actual role name
+  # Enhanced EBS configuration for memory-intensive workloads
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs:
+        volumeSize: 200Gi  # Larger for memory workloads
+        volumeType: gp3
+        iops: 4000
+        throughput: 250
+        encrypted: true
+        deleteOnTermination: true
+  
+  metadataOptions:
+    httpEndpoint: enabled
+    httpProtocolIPv6: disabled
+    httpPutResponseHopLimit: 2
+    httpTokens: required
+  
+  # Optimized kubelet for memory-intensive Spark workloads
+  kubelet:
+    clusterDNS: ["172.20.0.10"]
+    maxPods: 110
+    podsPerCore: 2
+    systemReserved:
+      cpu: 200m
+      memory: 200Mi
+      ephemeral-storage: 2Gi
+    kubeReserved:
+      cpu: 200m
+      memory: 200Mi
+      ephemeral-storage: 3Gi
+    evictionHard:
+      memory.available: 200Mi  # Higher threshold for memory workloads
+      nodefs.available: 10%
+      nodefs.inodesFree: 10%
+    evictionSoft:
+      memory.available: 500Mi
+      nodefs.available: 15%
+    evictionSoftGracePeriod:
+      memory.available: 2m
+      nodefs.available: 2m
   
   userData: |
     #!/bin/bash
-    /etc/eks/bootstrap.sh spark-k8s-operator  # Replace with cluster name
+    /etc/eks/bootstrap.sh spark-k8s-operator --b64-cluster-ca CLUSTER_CA_PLACEHOLDER --apiserver-endpoint CLUSTER_ENDPOINT_PLACEHOLDER
     
+    # Memory optimizations for Spark
+    echo 'vm.swappiness=1' >> /etc/sysctl.conf
+    echo 'vm.dirty_ratio=80' >> /etc/sysctl.conf
+    echo 'vm.dirty_background_ratio=5' >> /etc/sysctl.conf
+    echo 'vm.dirty_expire_centisecs=12000' >> /etc/sysctl.conf
+    echo 'net.core.somaxconn=32768' >> /etc/sysctl.conf
+    sysctl -p
+    
+    # Mount instance store with better performance
+    if [ -b /dev/nvme1n1 ]; then
+      mkfs.xfs -f /dev/nvme1n1
+      mkdir -p /mnt/k8s-disks
+      mount -o noatime,nodiratime /dev/nvme1n1 /mnt/k8s-disks
+      echo '/dev/nvme1n1 /mnt/k8s-disks xfs defaults,noatime,nodiratime 0 2' >> /etc/fstab
+      chmod 755 /mnt/k8s-disks
+    fi
+    
+    # Increase file limits for Spark
+    echo '* soft nofile 1048576' >> /etc/security/limits.conf
+    echo '* hard nofile 1048576' >> /etc/security/limits.conf
+  
   tags:
     Environment: dev
     Blueprint: spark-k8s-operator
+    WorkloadType: memory-intensive
+    KarpenterVersion: v1.6.0

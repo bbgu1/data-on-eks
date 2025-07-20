@@ -5,7 +5,7 @@ resources:
   - spark-compute-optimized.yaml
   - spark-memory-optimized.yaml
 
-# Kustomize replacements for dynamic values
+# Kustomize replacements for dynamic values (v1 API)
 replacements:
   - source:
       kind: ConfigMap
@@ -14,12 +14,13 @@ replacements:
     targets:
       - select:
           kind: EC2NodeClass
+          group: karpenter.k8s.aws
+          version: v1
         fieldPaths:
           - spec.userData
-      - select:
-          kind: NodePool
-        fieldPaths:
-          - spec.template.spec.nodeClassRef.name
+        options:
+          delimiter: ' '
+          index: 1
 
   - source:
       kind: ConfigMap
@@ -28,8 +29,23 @@ replacements:
     targets:
       - select:
           kind: EC2NodeClass
+          group: karpenter.k8s.aws
+          version: v1
         fieldPaths:
           - spec.role
+
+  - source:
+      kind: ConfigMap
+      name: cluster-config
+      fieldPath: data.clusterName
+    targets:
+      - select:
+          kind: EC2NodeClass
+          group: karpenter.k8s.aws
+          version: v1
+        fieldPaths:
+          - spec.subnetSelectorTerms.[tags=karpenter.sh/discovery]
+          - spec.securityGroupSelectorTerms.[tags=karpenter.sh/discovery]
 
 ---
 apiVersion: v1

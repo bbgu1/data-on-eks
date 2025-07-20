@@ -1,4 +1,4 @@
-apiVersion: karpenter.sh/v1beta1
+apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
   name: spark-compute-optimized
@@ -10,9 +10,11 @@ spec:
         type: karpenter
         NodeGroupType: SparkComputeOptimized
         multiArch: Spark
+      annotations:
+        karpenter.sh/do-not-consolidate: "true"  # Prevent premature consolidation
     spec:
       nodeClassRef:
-        apiVersion: karpenter.k8s.aws/v1beta1
+        group: karpenter.k8s.aws
         kind: EC2NodeClass
         name: spark-compute-optimized
       
@@ -39,40 +41,107 @@ spec:
           operator: Gt
           values: ["2"]
       
-      nodePoolLimits:
-        cpu: 1000
-      
-      disruption:
-        consolidationPolicy: WhenEmptyOrUnderutilized
-        consolidateAfter: 1m
+      # Spark workloads benefit from longer startup tolerance
+      expireAfter: 30m
+      terminationGracePeriod: 30s
+  
+  # v1 API: limits moved to top level
+  limits:
+    cpu: 1000
+  
+  disruption:
+    consolidationPolicy: WhenEmptyOrUnderutilized
+    consolidateAfter: 1m
+    # Enhanced disruption budgets for production workloads
+    budgets:
+      - nodes: 10%
+        schedule: "0 9-17 * * mon-fri"  # Business hours
+      - nodes: 50%
+        schedule: "0 18-8 * * mon-fri"  # After hours
+  
+  weight: 10  # Lower weight for compute-optimized
         
 ---
-apiVersion: karpenter.k8s.aws/v1beta1
+apiVersion: karpenter.k8s.aws/v1
 kind: EC2NodeClass
 metadata:
   name: spark-compute-optimized
   namespace: karpenter
 spec:
+  # v1 API: Use role instead of instanceProfile
+  role: "KarpenterNodeInstanceProfile-spark-k8s-operator"  # Will be replaced via Kustomize
+  
   amiFamily: AL2023
   amiSelectorTerms:
     - alias: al2023@latest
   
+  # Enhanced instance store configuration for Spark workloads
   instanceStorePolicy: RAID0
   
   subnetSelectorTerms:
     - tags:
-        karpenter.sh/discovery: "spark-k8s-operator"  # Replace with cluster name
+        karpenter.sh/discovery: "spark-k8s-operator"  # Will be replaced via Kustomize
   
   securityGroupSelectorTerms:
     - tags:
-        karpenter.sh/discovery: "spark-k8s-operator"  # Replace with cluster name
+        karpenter.sh/discovery: "spark-k8s-operator"  # Will be replaced via Kustomize
   
-  role: "KarpenterNodeInstanceProfile-spark-k8s-operator"  # Replace with actual role name
+  # Optimized for Spark workloads
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs:
+        volumeSize: 100Gi
+        volumeType: gp3
+        iops: 3000
+        throughput: 125
+        encrypted: true
+        deleteOnTermination: true
   
+  # Enhanced metadata options for security
+  metadataOptions:
+    httpEndpoint: enabled
+    httpProtocolIPv6: disabled
+    httpPutResponseHopLimit: 2
+    httpTokens: required
+  
+  # Optimized kubelet configuration for Spark
+  kubelet:
+    clusterDNS: ["172.20.0.10"]
+    maxPods: 110
+    podsPerCore: 2
+    systemReserved:
+      cpu: 100m
+      memory: 100Mi
+      ephemeral-storage: 1Gi
+    kubeReserved:
+      cpu: 100m
+      memory: 100Mi
+      ephemeral-storage: 3Gi
+    evictionHard:
+      memory.available: 100Mi
+      nodefs.available: 10%
+      nodefs.inodesFree: 10%
+  
+  # Custom userData for Spark optimizations
   userData: |
     #!/bin/bash
-    /etc/eks/bootstrap.sh spark-k8s-operator  # Replace with cluster name
+    /etc/eks/bootstrap.sh spark-k8s-operator --b64-cluster-ca CLUSTER_CA_PLACEHOLDER --apiserver-endpoint CLUSTER_ENDPOINT_PLACEHOLDER
     
+    # Optimize for Spark workloads
+    echo 'vm.swappiness=1' >> /etc/sysctl.conf
+    echo 'net.core.somaxconn=32768' >> /etc/sysctl.conf
+    sysctl -p
+    
+    # Mount instance store if available
+    if [ -b /dev/nvme1n1 ]; then
+      mkfs.xfs /dev/nvme1n1
+      mkdir -p /mnt/k8s-disks
+      mount /dev/nvme1n1 /mnt/k8s-disks
+      echo '/dev/nvme1n1 /mnt/k8s-disks xfs defaults,noatime 0 2' >> /etc/fstab
+      chmod 755 /mnt/k8s-disks
+    fi
+  
   tags:
     Environment: dev
     Blueprint: spark-k8s-operator
+    KarpenterVersion: v1.6.0

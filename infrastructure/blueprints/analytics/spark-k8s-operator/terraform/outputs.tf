@@ -57,3 +57,31 @@ output "configure_argocd" {
   description = "Configure ArgoCD: Port forward to access ArgoCD UI"
   value       = "kubectl port-forward svc/argocd-server -n ${module.eks.argocd_namespace} 8080:443"
 }
+
+output "karpenter_irsa_role_arn" {
+  description = "Karpenter IRSA role ARN for ArgoCD applications"
+  value       = module.eks.karpenter_irsa_role_arn
+}
+
+output "karpenter_node_instance_profile" {
+  description = "Karpenter node instance profile for EC2NodeClass"
+  value       = module.eks.karpenter_node_instance_profile
+}
+
+output "spark_operator_irsa_role_arn" {
+  description = "Spark Operator IRSA role ARN"
+  value       = module.eks.spark_operator_irsa_role_arn
+}
+
+output "argocd_values_example" {
+  description = "Example values for ArgoCD applications"
+  value = {
+    clusterName             = module.eks.cluster_name
+    clusterEndpoint         = module.eks.cluster_endpoint
+    region                  = local.region
+    s3BucketName           = module.s3_bucket.s3_bucket_id
+    karpenterIrsaRoleArn   = module.eks.karpenter_irsa_role_arn
+    sparkOperatorIrsaRoleArn = module.eks.spark_operator_irsa_role_arn
+    vpcId                  = module.vpc.vpc_id
+  }
+}

@@ -24,6 +24,14 @@ module "karpenter_irsa" {
   tags = var.tags
 }
 
+# Karpenter Node Instance Profile for v1.6
+resource "aws_iam_instance_profile" "karpenter_node_instance_profile" {
+  name = "KarpenterNodeInstanceProfile-${var.name}"
+  role = module.eks.eks_managed_node_groups_defaults.iam_role_name
+  
+  tags = var.tags
+}
+
 # Karpenter IAM Policy - Least Privilege
 resource "aws_iam_policy" "karpenter_policy" {
   name_prefix = "${var.name}-karpenter"
@@ -87,12 +95,60 @@ resource "aws_iam_policy" "karpenter_policy" {
         Sid    = "AllowPassNodeInstanceRole"
         Effect = "Allow"
         Action = "iam:PassRole"
-        Resource = module.eks.eks_managed_node_groups["*"].iam_role_arn
+        Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/eksctl-*"
         Condition = {
           StringEquals = {
             "iam:PassedToService" = "ec2.amazonaws.com"
           }
         }
+      },
+      {
+        Sid    = "AllowCreateDeleteLaunchTemplate"
+        Effect = "Allow"
+        Action = [
+          "ec2:CreateLaunchTemplate",
+          "ec2:DeleteLaunchTemplate"
+        ]
+        Resource = "arn:aws:ec2:*:${data.aws_caller_identity.current.account_id}:launch-template/*"
+        Condition = {
+          StringEquals = {
+            "aws:RequestedRegion" = [data.aws_region.current.name]
+          }
+        }
+      },
+      {
+        Sid    = "AllowCreateTags"
+        Effect = "Allow"
+        Action = "ec2:CreateTags"
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "ec2:CreateAction" = [
+              "RunInstances",
+              "CreateFleet",
+              "CreateLaunchTemplate"
+            ]
+          }
+        }
+      },
+      {
+        Sid    = "AllowPricing"
+        Effect = "Allow"
+        Action = [
+          "pricing:GetProducts"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "AllowInterruptionQueueActions"
+        Effect = "Allow"
+        Action = [
+          "sqs:DeleteMessage",
+          "sqs:GetQueueAttributes",
+          "sqs:GetQueueUrl",
+          "sqs:ReceiveMessage"
+        ]
+        Resource = "arn:aws:sqs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:${var.name}"
       }
     ]
   })

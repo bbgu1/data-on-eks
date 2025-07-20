@@ -13,14 +13,24 @@ spec:
   source:
     repoURL: oci://public.ecr.aws/karpenter
     chart: karpenter
-    targetRevision: "1.2.1"
+    targetRevision: "1.6.0"
     helm:
       values: |
         settings:
           clusterName: "{{ .Values.clusterName }}"
+          clusterEndpoint: "{{ .Values.clusterEndpoint }}"
           interruptionQueue: "{{ .Values.clusterName }}"
+          featureGates:
+            disruption: true
+        
+        serviceAccount:
+          name: karpenter
+          annotations:
+            eks.amazonaws.com/role-arn: "{{ .Values.karpenterIrsaRoleArn }}"
         
         controller:
+          image:
+            tag: "1.6.0"
           resources:
             requests:
               cpu: 1000m
@@ -28,14 +38,22 @@ spec:
             limits:
               cpu: 1000m
               memory: 1Gi
+          nodeSelector:
+            NodeGroupType: "core"
+          tolerations:
+            - key: "CriticalAddonsOnly"
+              operator: "Exists"
         
         webhook:
           enabled: true
           port: 8443
-          
-        nodePool:
-          # Default node pool that can be customized per blueprint
-          enabled: false
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
   
   destination:
     server: https://kubernetes.default.svc
