@@ -90,17 +90,7 @@ module "eks" {
   tags = local.tags
 }
 
-#---------------------------------------------------------------
-# Providers using base module
-#---------------------------------------------------------------
-module "providers" {
-  source = "../../../../base/providers"
-  
-  region = local.region
-  cluster_endpoint = module.eks.cluster_endpoint
-  cluster_certificate_authority_data = module.eks.cluster_certificate_authority_data
-  cluster_auth_token = module.eks.cluster_auth_token
-}
+# Providers are configured in versions.tf
 
 #---------------------------------------------------------------
 # S3 bucket for Spark Event Logs

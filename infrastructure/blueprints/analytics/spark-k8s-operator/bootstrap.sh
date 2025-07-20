@@ -12,7 +12,9 @@ else
   region=$1
 fi
 
+# Set AWS region environment variables to ensure consistency
 export AWS_DEFAULT_REGION=$region
+export AWS_REGION=$region
 
 echo "Using AWS region: $region"
 echo
@@ -55,7 +57,6 @@ echo "=== Step 3: Deploy Base Infrastructure ==="
 targets=(
   "module.vpc"
   "module.eks"
-  "module.providers"
 )
 
 # Apply core infrastructure modules in sequence
