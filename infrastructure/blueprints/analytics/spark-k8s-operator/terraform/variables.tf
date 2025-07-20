@@ -7,13 +7,13 @@ variable "name" {
 variable "region" {
   description = "AWS region"
   type        = string
-  default     = "us-west-2"
+  default     = "us-east-1"
 }
 
 variable "eks_cluster_version" {
   description = "EKS Cluster version"
   type        = string
-  default     = "1.31"
+  default     = "1.33"
 }
 
 variable "vpc_cidr" {

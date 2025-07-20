@@ -18,7 +18,7 @@ data "aws_partition" "current" {}
 # VPC using base module
 #---------------------------------------------------------------
 module "vpc" {
-  source = "../../../base/vpc"
+  source = "../../../../base/vpc"
   
   name          = local.name
   vpc_cidr      = var.vpc_cidr
@@ -40,7 +40,7 @@ module "vpc" {
 # EKS Cluster using base module
 #---------------------------------------------------------------
 module "eks" {
-  source = "../../../base/eks"
+  source = "../../../../base/eks"
   
   name                           = local.name
   eks_cluster_version            = var.eks_cluster_version
@@ -94,7 +94,7 @@ module "eks" {
 # Providers using base module
 #---------------------------------------------------------------
 module "providers" {
-  source = "../../../base/providers"
+  source = "../../../../base/providers"
   
   region = local.region
   cluster_endpoint = module.eks.cluster_endpoint

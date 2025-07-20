@@ -27,7 +27,10 @@ module "karpenter_irsa" {
 # Karpenter Node Instance Profile for v1.6
 resource "aws_iam_instance_profile" "karpenter_node_instance_profile" {
   name = "KarpenterNodeInstanceProfile-${var.name}"
-  role = module.eks.eks_managed_node_groups_defaults.iam_role_name
+  role = try(
+    values(module.eks.eks_managed_node_groups)[0].iam_role_name,
+    module.eks.eks_managed_node_groups_defaults.iam_role_name
+  )
   
   tags = var.tags
 }
