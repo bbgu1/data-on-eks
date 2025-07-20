@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: core-addons
+  namespace: argocd
+  labels:
+    category: bootstrap
+    type: app-of-apps
+spec:
+  project: core-infrastructure
+  source:
+    repoURL: "{{ .Values.gitRepoUrl }}"
+    path: argocd-addons/core
+    targetRevision: "{{ .Values.gitRevision | default "HEAD" }}"
+    directory:
+      recurse: true
+      exclude: "*.md"
+  
+  destination:
+    server: https://kubernetes.default.svc
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

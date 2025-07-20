@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: data-addons
+  namespace: argocd
+  labels:
+    category: bootstrap
+    type: app-of-apps
+spec:
+  project: data-platform
+  source:
+    repoURL: "{{ .Values.gitRepoUrl }}"
+    path: argocd-addons/data
+    targetRevision: "{{ .Values.gitRevision | default "HEAD" }}"
+    directory:
+      recurse: true
+      exclude: "*.md"
+  
+  destination:
+    server: https://kubernetes.default.svc
+  
+  syncPolicy:
+    automated:
+      prune: false  # Don't auto-prune data addons for safety
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

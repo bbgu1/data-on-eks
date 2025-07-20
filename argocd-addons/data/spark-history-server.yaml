@@ -1,0 +1,78 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: spark-history-server
+  namespace: argocd
+  labels:
+    category: data
+    type: analytics
+spec:
+  project: data-platform
+  source:
+    repoURL: https://aws-ia.github.io/eks-data-addons
+    chart: spark-history-server
+    targetRevision: "1.3.2"
+    helm:
+      values: |
+        sparkHistoryOpts: "-Dspark.history.fs.logDirectory=s3a://{{ .Values.s3BucketName }}/spark-event-logs"
+        
+        serviceAccount:
+          create: true
+          name: spark-history-server
+          annotations:
+            eks.amazonaws.com/role-arn: "{{ .Values.sparkHistoryServerRoleArn }}"
+        
+        nodeSelector:
+          NodeGroupType: "core"
+        
+        tolerations:
+          - key: "CriticalAddonsOnly"
+            operator: "Exists"
+        
+        resources:
+          requests:
+            cpu: 100m
+            memory: 512Mi
+          limits:
+            cpu: 200m
+            memory: 1Gi
+        
+        service:
+          type: ClusterIP
+          port: 80
+          targetPort: 18080
+        
+        ingress:
+          enabled: false
+          className: nginx
+          hosts:
+            - host: spark-history.{{ .Values.clusterName }}.local
+              paths:
+                - path: /
+                  pathType: Prefix
+        
+        persistence:
+          enabled: false
+        
+        environment:
+          SPARK_HISTORY_OPTS: "-Dspark.history.fs.logDirectory=s3a://{{ .Values.s3BucketName }}/spark-event-logs"
+          SPARK_CONF_DIR: "/opt/spark/conf"
+        
+        sparkConf:
+          spark.hadoop.fs.s3a.impl: "org.apache.hadoop.fs.s3a.S3AFileSystem"
+          spark.hadoop.fs.s3a.aws.credentials.provider: "com.amazonaws.auth.WebIdentityTokenCredentialsProvider"
+          spark.history.ui.port: "18080"
+          spark.history.provider: "org.apache.spark.deploy.history.FsHistoryProvider"
+          spark.history.fs.update.interval: "10s"
+          spark.history.fs.logDirectory: "s3a://{{ .Values.s3BucketName }}/spark-event-logs"
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: spark-history-server
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

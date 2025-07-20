@@ -1,0 +1,119 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+  labels:
+    category: core
+    type: monitoring
+spec:
+  project: core-infrastructure
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: "69.5.2"
+    helm:
+      values: |
+        prometheus:
+          prometheusSpec:
+            serviceMonitorSelectorNilUsesHelmValues: false
+            podMonitorSelectorNilUsesHelmValues: false
+            probeSelectorNilUsesHelmValues: false
+            ruleSelectorNilUsesHelmValues: false
+            
+            nodeSelector:
+              NodeGroupType: "core"
+            
+            tolerations:
+              - key: "CriticalAddonsOnly"
+                operator: "Exists"
+            
+            resources:
+              requests:
+                cpu: 500m
+                memory: 2Gi
+              limits:
+                cpu: 1000m
+                memory: 4Gi
+            
+            # Remote write to Amazon Managed Prometheus (optional)
+            remoteWrite: []
+            # - url: "{{ .Values.ampRemoteWriteUrl | default "" }}"
+            #   sigv4:
+            #     region: "{{ .Values.region }}"
+            #   queueConfig:
+            #     maxSamplesPerSend: 1000
+            #     maxShards: 200
+            #     capacity: 2500
+        
+        grafana:
+          adminPassword: "{{ .Values.grafanaAdminPassword }}"
+          
+          service:
+            type: ClusterIP
+          
+          ingress:
+            enabled: false
+          
+          nodeSelector:
+            NodeGroupType: "core"
+          
+          tolerations:
+            - key: "CriticalAddonsOnly"
+              operator: "Exists"
+          
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          
+          persistence:
+            enabled: true
+            size: 10Gi
+            storageClassName: gp3
+        
+        alertmanager:
+          alertmanagerSpec:
+            nodeSelector:
+              NodeGroupType: "core"
+            
+            tolerations:
+              - key: "CriticalAddonsOnly"
+                operator: "Exists"
+            
+            resources:
+              requests:
+                cpu: 100m
+                memory: 128Mi
+              limits:
+                cpu: 200m
+                memory: 256Mi
+        
+        kubeStateMetrics:
+          enabled: true
+        
+        nodeExporter:
+          enabled: true
+        
+        prometheusOperator:
+          nodeSelector:
+            NodeGroupType: "core"
+          
+          tolerations:
+            - key: "CriticalAddonsOnly"
+              operator: "Exists"
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-prometheus-stack
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

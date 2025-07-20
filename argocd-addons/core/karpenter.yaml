@@ -1,0 +1,48 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: karpenter
+  namespace: argocd
+  labels:
+    category: core
+    type: autoscaling
+spec:
+  project: core-infrastructure
+  source:
+    repoURL: oci://public.ecr.aws/karpenter
+    chart: karpenter
+    targetRevision: "1.2.1"
+    helm:
+      values: |
+        settings:
+          clusterName: "{{ .Values.clusterName }}"
+          interruptionQueue: "{{ .Values.clusterName }}"
+        
+        controller:
+          resources:
+            requests:
+              cpu: 1000m
+              memory: 1Gi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+        
+        webhook:
+          enabled: true
+          port: 8443
+          
+        nodePool:
+          # Default node pool that can be customized per blueprint
+          enabled: false
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: karpenter
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
