@@ -4,10 +4,10 @@ metadata:
   name: kubecost
   namespace: argocd
   labels:
-    category: data
+    category: core
     type: cost-management
 spec:
-  project: data-platform
+  project: core-infrastructure
   source:
     repoURL: oci://public.ecr.aws/kubecost
     chart: cost-analyzer

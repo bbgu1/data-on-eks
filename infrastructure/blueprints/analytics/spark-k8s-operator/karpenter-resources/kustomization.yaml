@@ -1,0 +1,41 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - spark-compute-optimized.yaml
+  - spark-memory-optimized.yaml
+
+# Kustomize replacements for dynamic values
+replacements:
+  - source:
+      kind: ConfigMap
+      name: cluster-config
+      fieldPath: data.clusterName
+    targets:
+      - select:
+          kind: EC2NodeClass
+        fieldPaths:
+          - spec.userData
+      - select:
+          kind: NodePool
+        fieldPaths:
+          - spec.template.spec.nodeClassRef.name
+
+  - source:
+      kind: ConfigMap
+      name: cluster-config
+      fieldPath: data.karpenterRole
+    targets:
+      - select:
+          kind: EC2NodeClass
+        fieldPaths:
+          - spec.role
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-config
+data:
+  clusterName: "CLUSTER_NAME_PLACEHOLDER"
+  karpenterRole: "KARPENTER_ROLE_PLACEHOLDER"

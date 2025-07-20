@@ -25,6 +25,39 @@ module "eks" {
   authentication_mode                      = "API_AND_CONFIG_MAP"
   enable_cluster_creator_admin_permissions = true
 
+  #---------------------------------------
+  # Amazon EKS Managed Add-ons
+  #---------------------------------------
+  cluster_addons = {
+    coredns                = {}
+    eks-pod-identity-agent = {}
+    vpc-cni = {
+      before_compute = true
+      preserve       = true
+      most_recent    = true
+      configuration_values = jsonencode({
+        env = {
+          # Reference docs https://docs.aws.amazon.com/eks/latest/userguide/cni-increase-ip-addresses.html
+          ENABLE_PREFIX_DELEGATION = "true"
+          WARM_PREFIX_TARGET       = "1"
+        }
+      })
+    }
+    kube-proxy = {}
+    aws-ebs-csi-driver = {
+      service_account_role_arn = module.ebs_csi_driver_irsa.iam_role_arn
+      most_recent              = true
+    }
+    aws-mountpoint-s3-csi-driver = var.enable_mountpoint_s3_csi ? {
+      service_account_role_arn = module.s3_csi_driver_irsa[0].iam_role_arn
+    } : {}
+    metrics-server = {}
+    amazon-cloudwatch-observability = var.enable_cloudwatch_observability ? {
+      preserve                 = true
+      service_account_role_arn = aws_iam_role.cloudwatch_observability_role[0].arn
+    } : {}
+  }
+
   vpc_id = var.vpc_id
   # Filtering only Secondary CIDR private subnets starting with "100.". Subnet IDs where the EKS Control Plane ENIs will be created
   subnet_ids = compact([for subnet_id, cidr_block in zipmap(var.private_subnets, var.private_subnets_cidr_blocks) :

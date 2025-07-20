@@ -6,6 +6,8 @@ metadata:
   labels:
     category: data
     type: analytics
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"  # Deploy after Karpenter
 spec:
   project: data-platform
   source:

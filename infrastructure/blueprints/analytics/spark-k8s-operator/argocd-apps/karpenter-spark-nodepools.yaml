@@ -1,24 +1,23 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: spark-k8s-operator-stack
+  name: karpenter-spark-nodepools
   namespace: argocd
   labels:
     blueprint: spark-k8s-operator
-    category: bootstrap
-    type: app-of-apps
+    category: analytics
 spec:
   project: data-platform
   source:
     repoURL: "{{ .Values.gitRepoUrl }}"
-    path: infrastructure/blueprints/analytics/spark-k8s-operator/argocd-apps
+    path: infrastructure/blueprints/analytics/spark-k8s-operator/karpenter-resources
     targetRevision: "{{ .Values.gitRevision | default "HEAD" }}"
     directory:
       recurse: true
-      exclude: "spark-app-of-apps.yaml"
   
   destination:
     server: https://kubernetes.default.svc
+    namespace: karpenter
   
   syncPolicy:
     automated:

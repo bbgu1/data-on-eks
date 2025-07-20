@@ -9,9 +9,9 @@ metadata:
 spec:
   project: data-platform
   source:
-    repoURL: https://aws-ia.github.io/eks-data-addons
+    repoURL: https://kubed-ai.github.io/spark-history-server
     chart: spark-history-server
-    targetRevision: "1.3.2"
+    targetRevision: "1.5.1"
     helm:
       values: |
         sparkHistoryOpts: "-Dspark.history.fs.logDirectory=s3a://{{ .Values.s3BucketName }}/spark-event-logs"

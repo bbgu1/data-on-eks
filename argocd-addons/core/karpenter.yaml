@@ -6,6 +6,8 @@ metadata:
   labels:
     category: core
     type: autoscaling
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"  # Deploy after core infrastructure
 spec:
   project: core-infrastructure
   source:
