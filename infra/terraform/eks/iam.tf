@@ -30,57 +30,38 @@ resource "aws_iam_role_policy_attachment" "cloudwatch_observability_policy_attac
 }
 
 #---------------------------------------------------------------
-# IRSA for EBS CSI Driver
+# S3 CSI Driver Policy (used by Pod Identity)
 #---------------------------------------------------------------
-module "ebs_csi_driver_irsa" {
-  source                = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
-  version               = "~> 5.55"
-  role_name_prefix      = format("%s-%s-", var.name, "ebs-csi-driver")
-  attach_ebs_csi_policy = true
-  oidc_providers = {
-    main = {
-      provider_arn               = module.eks.oidc_provider_arn
-      namespace_service_accounts = ["kube-system:ebs-csi-controller-sa"]
-    }
-  }
-  tags = var.tags
-}
-
-#---------------------------------------------------------------
-# IRSA for Mountpoint S3 CSI Driver
-#---------------------------------------------------------------
-module "s3_csi_driver_irsa" {
-  source           = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
-  version          = "~> 5.55"
-  role_name_prefix = format("%s-%s-", var.name, "s3-csi-driver")
-  role_policy_arns = {
-    s3_access = aws_iam_policy.s3_irsa_access_policy.arn
-  }
-  oidc_providers = {
-    main = {
-      provider_arn               = module.eks.oidc_provider_arn
-      namespace_service_accounts = ["kube-system:s3-csi-driver-sa"]
-    }
-  }
-  tags = var.tags
-}
-
-resource "aws_iam_policy" "s3_irsa_access_policy" {
-  name        = "${var.name}-S3Access"
+resource "aws_iam_policy" "s3_csi_access_policy" {
+  count       = var.enable_mountpoint_s3_csi ? 1 : 0
+  name        = "${var.name}-S3CSIAccess"
   path        = "/"
-  description = "S3 Access for Nodes"
+  description = "S3 CSI Driver Access Policy"
 
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
+        Sid    = "MountpointFullBucketAccess"
+        Effect = "Allow"
         Action = [
-          "s3:*",
-          "s3express:*"
+          "s3:ListBucket"
         ]
-        Effect   = "Allow"
         Resource = "*"
       },
+      {
+        Sid    = "MountpointFullObjectAccess"
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:AbortMultipartUpload",
+          "s3:DeleteObject"
+        ]
+        Resource = "*"
+      }
     ]
   })
+
+  tags = var.tags
 }

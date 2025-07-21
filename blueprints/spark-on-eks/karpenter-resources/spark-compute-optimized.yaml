@@ -1,23 +1,29 @@
+# Karpenter v1.6 - Spark Compute Optimized NodePool
 apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
   name: spark-compute-optimized
   namespace: karpenter
+  labels:
+    blueprint: spark-on-eks
+    workload-type: compute-intensive
 spec:
   template:
     metadata:
       labels:
         type: karpenter
-        NodeGroupType: SparkComputeOptimized
-        multiArch: Spark
+        node-type: spark-compute-optimized
+        workload-class: compute-intensive
+        provisioner: karpenter
       annotations:
-        karpenter.sh/do-not-consolidate: "true"  # Prevent premature consolidation
+        karpenter.sh/do-not-consolidate: "true"
     spec:
       nodeClassRef:
-        group: karpenter.k8s.aws
+        apiVersion: karpenter.k8s.aws/v1
         kind: EC2NodeClass
         name: spark-compute-optimized
       
+      # v1.6 Requirements - Modern Instance Types
       requirements:
         - key: "karpenter.sh/capacity-type"
           operator: In
@@ -30,118 +36,175 @@ spec:
           values: ["c"]
         - key: "karpenter.k8s.aws/instance-family"
           operator: In
-          values: ["c5d"]
+          values: ["c5", "c5d", "c5n", "c6i", "c6id", "c6in", "c7i", "c7id"]
         - key: "karpenter.k8s.aws/instance-size"
           operator: In
-          values: ["4xlarge", "9xlarge", "12xlarge", "18xlarge", "24xlarge"]
+          values: ["2xlarge", "4xlarge", "8xlarge", "12xlarge", "16xlarge", "24xlarge"]
         - key: "karpenter.k8s.aws/instance-hypervisor"
           operator: In
           values: ["nitro"]
         - key: "karpenter.k8s.aws/instance-generation"
           operator: Gt
-          values: ["2"]
+          values: ["4"]
       
-      # Spark workloads benefit from longer startup tolerance
+      # Spark workload optimizations
+      startupTaints:
+        - key: "spark.apache.org/node-type"
+          value: "compute-optimized"
+          effect: NoSchedule
+      
+      # Node lifecycle settings
       expireAfter: 30m
       terminationGracePeriod: 30s
   
-  # v1 API: limits moved to top level
+  # Resource limits for cost control
   limits:
-    cpu: 1000
+    cpu: 2000
+    memory: 2000Gi
   
+  # v1.6 Disruption settings
   disruption:
     consolidationPolicy: WhenEmptyOrUnderutilized
-    consolidateAfter: 1m
-    # Enhanced disruption budgets for production workloads
+    consolidateAfter: 60s
     budgets:
       - nodes: 10%
         schedule: "0 9-17 * * mon-fri"  # Business hours
-      - nodes: 50%
+        duration: 8h
+      - nodes: 30%
         schedule: "0 18-8 * * mon-fri"  # After hours
+        duration: 14h
   
-  weight: 10  # Lower weight for compute-optimized
+  # Priority weight
+  weight: 10
         
 ---
+# Karpenter v1.6 - EC2NodeClass for Compute Optimized
 apiVersion: karpenter.k8s.aws/v1
 kind: EC2NodeClass
 metadata:
   name: spark-compute-optimized
   namespace: karpenter
+  labels:
+    blueprint: spark-on-eks
+    workload-type: compute-intensive
 spec:
-  # v1 API: Use role instead of instanceProfile
-  role: "KarpenterNodeInstanceProfile-spark-k8s-operator"  # Will be replaced via Kustomize
+  # v1.6: Use role name directly (not instance profile)
+  role: "{{ .Values.karpenterNodeInstanceProfile }}"
   
+  # AL2023 with latest optimizations
   amiFamily: AL2023
   amiSelectorTerms:
     - alias: al2023@latest
+      requirements:
+        - key: "kubernetes.io/arch"
+          operator: In
+          values: ["amd64"]
   
-  # Enhanced instance store configuration for Spark workloads
+  # Instance store configuration
   instanceStorePolicy: RAID0
   
+  # Network configuration
   subnetSelectorTerms:
     - tags:
-        karpenter.sh/discovery: "spark-k8s-operator"  # Will be replaced via Kustomize
+        karpenter.sh/discovery: "{{ .Values.clusterName }}"
+        Type: "Private"
   
   securityGroupSelectorTerms:
     - tags:
-        karpenter.sh/discovery: "spark-k8s-operator"  # Will be replaced via Kustomize
+        karpenter.sh/discovery: "{{ .Values.clusterName }}"
+        Type: "ClusterSharedNodeSecurityGroup"
   
-  # Optimized for Spark workloads
+  # Storage configuration optimized for Spark
   blockDeviceMappings:
     - deviceName: /dev/xvda
       ebs:
         volumeSize: 100Gi
         volumeType: gp3
-        iops: 3000
-        throughput: 125
+        iops: 4000
+        throughput: 250
         encrypted: true
         deleteOnTermination: true
   
-  # Enhanced metadata options for security
+  # Enhanced security
   metadataOptions:
     httpEndpoint: enabled
     httpProtocolIPv6: disabled
     httpPutResponseHopLimit: 2
     httpTokens: required
   
-  # Optimized kubelet configuration for Spark
+  # Detailed monitoring for production
+  detailedMonitoring: true
+  
+  # Kubelet configuration optimized for Spark
   kubelet:
     clusterDNS: ["172.20.0.10"]
     maxPods: 110
     podsPerCore: 2
     systemReserved:
       cpu: 100m
-      memory: 100Mi
-      ephemeral-storage: 1Gi
+      memory: 200Mi
+      ephemeral-storage: 2Gi
     kubeReserved:
-      cpu: 100m
-      memory: 100Mi
+      cpu: 200m
+      memory: 300Mi
       ephemeral-storage: 3Gi
     evictionHard:
-      memory.available: 100Mi
+      memory.available: 200Mi
       nodefs.available: 10%
       nodefs.inodesFree: 10%
+    evictionSoft:
+      memory.available: 500Mi
+      nodefs.available: 15%
+    evictionSoftGracePeriod:
+      memory.available: 2m
+      nodefs.available: 2m
+    imageGCHighThresholdPercent: 85
+    imageGCLowThresholdPercent: 80
   
-  # Custom userData for Spark optimizations
+  # Production-grade user data
   userData: |
     #!/bin/bash
-    /etc/eks/bootstrap.sh spark-k8s-operator --b64-cluster-ca CLUSTER_CA_PLACEHOLDER --apiserver-endpoint CLUSTER_ENDPOINT_PLACEHOLDER
+    /etc/eks/bootstrap.sh {{ .Values.clusterName }} \
+      --b64-cluster-ca {{ .Values.clusterCA }} \
+      --apiserver-endpoint {{ .Values.clusterEndpoint }} \
+      --container-runtime containerd \
+      --kubelet-extra-args '--node-labels=node-type=spark-compute-optimized,workload-class=compute-intensive'
     
-    # Optimize for Spark workloads
-    echo 'vm.swappiness=1' >> /etc/sysctl.conf
+    # Spark performance optimizations
     echo 'net.core.somaxconn=32768' >> /etc/sysctl.conf
+    echo 'net.core.netdev_max_backlog=5000' >> /etc/sysctl.conf
+    echo 'vm.swappiness=1' >> /etc/sysctl.conf
+    echo 'vm.dirty_ratio=15' >> /etc/sysctl.conf
+    echo 'vm.dirty_background_ratio=5' >> /etc/sysctl.conf
+    echo 'vm.overcommit_memory=1' >> /etc/sysctl.conf
     sysctl -p
     
-    # Mount instance store if available
-    if [ -b /dev/nvme1n1 ]; then
-      mkfs.xfs /dev/nvme1n1
-      mkdir -p /mnt/k8s-disks
-      mount /dev/nvme1n1 /mnt/k8s-disks
-      echo '/dev/nvme1n1 /mnt/k8s-disks xfs defaults,noatime 0 2' >> /etc/fstab
-      chmod 755 /mnt/k8s-disks
+    # Configure instance store if available
+    if [[ -b /dev/nvme1n1 ]]; then
+      mkfs.xfs -f /dev/nvme1n1
+      mkdir -p /mnt/k8s-disks/spark-local
+      mount -o noatime,nodiratime /dev/nvme1n1 /mnt/k8s-disks/spark-local
+      echo '/dev/nvme1n1 /mnt/k8s-disks/spark-local xfs defaults,noatime,nodiratime 0 2' >> /etc/fstab
+      chmod 755 /mnt/k8s-disks/spark-local
     fi
+    
+    # Increase limits for Spark
+    echo '* soft nofile 1048576' >> /etc/security/limits.conf
+    echo '* hard nofile 1048576' >> /etc/security/limits.conf
+    echo '* soft nproc 1048576' >> /etc/security/limits.conf
+    echo '* hard nproc 1048576' >> /etc/security/limits.conf
+    
+    # Configure container runtime
+    echo 'net.bridge.bridge-nf-call-iptables=1' >> /etc/sysctl.conf
+    echo 'net.bridge.bridge-nf-call-ip6tables=1' >> /etc/sysctl.conf
+    sysctl -p
   
+  # Comprehensive tagging
   tags:
-    Environment: dev
-    Blueprint: spark-k8s-operator
+    Environment: "{{ .Values.environment | default "dev" }}"
+    Blueprint: spark-on-eks
+    WorkloadType: compute-intensive
     KarpenterVersion: v1.6.0
+    ManagedBy: karpenter
+    CostCenter: analytics
+    Team: data-platform

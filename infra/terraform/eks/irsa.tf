@@ -1,25 +1,37 @@
 #---------------------------------------------------------------
-# Enhanced IRSA Roles with Least Privilege
+# Pod Identity Roles - Modern IRSA Replacement
 #---------------------------------------------------------------
 
-# Karpenter IRSA Role
-module "karpenter_irsa" {
-  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
-  version = "~> 5.55"
+# Karpenter Pod Identity Role
+resource "aws_iam_role" "karpenter_pod_identity_role" {
+  name = "${var.name}-karpenter-pod-identity-role"
 
-  role_name_prefix = format("%s-%s-", var.name, "karpenter")
-  
-  # Custom policy instead of broad permissions
-  role_policy_arns = {
-    karpenter = aws_iam_policy.karpenter_policy.arn
-  }
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "pods.eks.amazonaws.com"
+        }
+        Action = [
+          "sts:AssumeRole",
+          "sts:TagSession"
+        ]
+      }
+    ]
+  })
 
-  oidc_providers = {
-    main = {
-      provider_arn               = module.eks.oidc_provider_arn
-      namespace_service_accounts = ["karpenter:karpenter"]
-    }
-  }
+  managed_policy_arns = [aws_iam_policy.karpenter_policy.arn]
+  tags = var.tags
+}
+
+# Pod Identity Association for Karpenter
+resource "aws_eks_pod_identity_association" "karpenter" {
+  cluster_name    = module.eks.cluster_name
+  namespace       = "karpenter"
+  service_account = "karpenter"
+  role_arn        = aws_iam_role.karpenter_pod_identity_role.arn
 
   tags = var.tags
 }
@@ -159,69 +171,72 @@ resource "aws_iam_policy" "karpenter_policy" {
   tags = var.tags
 }
 
-# Spark Operator IRSA Role
-module "spark_operator_irsa" {
-  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
-  version = "~> 5.55"
+# EBS CSI Driver Pod Identity Role
+resource "aws_iam_role" "ebs_csi_pod_identity_role" {
+  name = "${var.name}-ebs-csi-pod-identity-role"
 
-  role_name_prefix = format("%s-%s-", var.name, "spark-operator")
-  
-  role_policy_arns = {
-    spark_operator = aws_iam_policy.spark_operator_policy.arn
-  }
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "pods.eks.amazonaws.com"
+        }
+        Action = [
+          "sts:AssumeRole",
+          "sts:TagSession"
+        ]
+      }
+    ]
+  })
 
-  oidc_providers = {
-    main = {
-      provider_arn               = module.eks.oidc_provider_arn
-      namespace_service_accounts = [
-        "spark-operator:spark-operator",
-        "default:spark",
-        "spark-team-a:spark",
-        "spark-team-b:spark", 
-        "spark-team-c:spark"
-      ]
-    }
-  }
+  managed_policy_arns = ["arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"]
+  tags = var.tags
+}
+
+# Pod Identity Association for EBS CSI Driver
+resource "aws_eks_pod_identity_association" "ebs_csi" {
+  cluster_name    = module.eks.cluster_name
+  namespace       = "kube-system"
+  service_account = "ebs-csi-controller-sa"
+  role_arn        = aws_iam_role.ebs_csi_pod_identity_role.arn
 
   tags = var.tags
 }
 
-# Spark Operator IAM Policy
-resource "aws_iam_policy" "spark_operator_policy" {
-  name_prefix = "${var.name}-spark-operator"
-  description = "Spark Operator policy for ${var.name}"
-  
-  policy = jsonencode({
+# S3 CSI Driver Pod Identity Role
+resource "aws_iam_role" "s3_csi_pod_identity_role" {
+  count = var.enable_mountpoint_s3_csi ? 1 : 0
+  name  = "${var.name}-s3-csi-pod-identity-role"
+
+  assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "AllowS3Access"
         Effect = "Allow"
+        Principal = {
+          Service = "pods.eks.amazonaws.com"
+        }
         Action = [
-          "s3:GetObject",
-          "s3:ListBucket",
-          "s3:PutObject",
-          "s3:DeleteObject"
+          "sts:AssumeRole",
+          "sts:TagSession"
         ]
-        Resource = [
-          "arn:aws:s3:::${var.name}-*",
-          "arn:aws:s3:::${var.name}-*/*"
-        ]
-      },
-      {
-        Sid    = "AllowCloudWatchLogs"
-        Effect = "Allow"
-        Action = [
-          "logs:CreateLogGroup",
-          "logs:CreateLogStream",
-          "logs:PutLogEvents",
-          "logs:DescribeLogGroups",
-          "logs:DescribeLogStreams"
-        ]
-        Resource = "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:/spark/*"
       }
     ]
   })
+
+  managed_policy_arns = [aws_iam_policy.s3_csi_access_policy[0].arn]
+  tags = var.tags
+}
+
+# Pod Identity Association for S3 CSI Driver
+resource "aws_eks_pod_identity_association" "s3_csi" {
+  count           = var.enable_mountpoint_s3_csi ? 1 : 0
+  cluster_name    = module.eks.cluster_name
+  namespace       = "kube-system"
+  service_account = "s3-csi-driver-sa"
+  role_arn        = aws_iam_role.s3_csi_pod_identity_role[0].arn
 
   tags = var.tags
 }

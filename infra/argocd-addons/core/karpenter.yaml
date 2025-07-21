@@ -25,8 +25,7 @@ spec:
         
         serviceAccount:
           name: karpenter
-          annotations:
-            eks.amazonaws.com/role-arn: "{{ .Values.karpenterIrsaRoleArn }}"
+          # Pod Identity used instead of IRSA annotations
         
         controller:
           image:

@@ -4,8 +4,11 @@ metadata:
   name: spark-history-server
   namespace: argocd
   labels:
-    blueprint: spark-k8s-operator
+    blueprint: spark-on-eks
     category: analytics
+    component: spark-history-server
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"  # Deploy after Spark Operator
 spec:
   project: data-platform
   source:
@@ -17,25 +20,25 @@ spec:
         sparkHistoryOpts: "-Dspark.history.fs.logDirectory=s3a://{{ .Values.s3BucketName }}/spark-event-logs"
         
         serviceAccount:
-          create: true
+          create: false  # Managed by Pod Identity
           name: spark-history-server
-          annotations:
-            eks.amazonaws.com/role-arn: "{{ .Values.sparkHistoryServerRoleArn }}"
         
         nodeSelector:
-          NodeGroupType: "core"
+          node-type: spark-compute-optimized
         
         tolerations:
-          - key: "CriticalAddonsOnly"
-            operator: "Exists"
+          - key: "spark.apache.org/node-type"
+            operator: Equal
+            value: "compute-optimized"
+            effect: NoSchedule
         
         resources:
           requests:
-            cpu: 100m
-            memory: 512Mi
-          limits:
             cpu: 200m
             memory: 1Gi
+          limits:
+            cpu: 500m
+            memory: 2Gi
         
         service:
           type: ClusterIP
@@ -63,5 +66,31 @@ spec:
     automated:
       prune: true
       selfHeal: true
+      allowEmpty: false
     syncOptions:
       - CreateNamespace=true
+      - ServerSideApply=true
+      - ApplyOutOfSyncOnly=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  
+  # Health checks
+  healthChecks:
+    - group: apps
+      kind: Deployment
+      check: |
+        health_status = {}
+        if obj.status ~= nil then
+          if obj.status.readyReplicas ~= nil and obj.status.readyReplicas > 0 then
+            health_status.status = "Healthy"
+            health_status.message = "History server is ready"
+            return health_status
+          end
+        end
+        health_status.status = "Progressing"
+        health_status.message = "History server is not ready"
+        return health_status

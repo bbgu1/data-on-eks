@@ -49,9 +49,9 @@ output "eks_managed_node_groups" {
   value       = module.eks.eks_managed_node_groups
 }
 
-output "karpenter_irsa_role_arn" {
-  description = "Karpenter IRSA role ARN"
-  value       = try(module.karpenter_irsa.iam_role_arn, null)
+output "karpenter_pod_identity_role_arn" {
+  description = "Karpenter Pod Identity role ARN"
+  value       = aws_iam_role.karpenter_pod_identity_role.arn
 }
 
 output "karpenter_node_instance_profile" {
@@ -59,7 +59,4 @@ output "karpenter_node_instance_profile" {
   value       = try(aws_iam_instance_profile.karpenter_node_instance_profile.name, null)
 }
 
-output "spark_operator_irsa_role_arn" {
-  description = "Spark Operator IRSA role ARN"
-  value       = try(module.spark_operator_irsa.iam_role_arn, null)
-}
+# Spark Operator Pod Identity role moved to blueprint-specific module

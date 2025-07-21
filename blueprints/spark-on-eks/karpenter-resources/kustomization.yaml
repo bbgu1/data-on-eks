@@ -1,57 +1,98 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
+metadata:
+  name: spark-karpenter-nodepools
+  labels:
+    blueprint: spark-on-eks
+    component: karpenter-nodepools
+
+# Resources to include
 resources:
   - spark-compute-optimized.yaml
   - spark-memory-optimized.yaml
 
-# Kustomize replacements for dynamic values (v1 API)
-replacements:
-  - source:
-      kind: ConfigMap
-      name: cluster-config
-      fieldPath: data.clusterName
-    targets:
-      - select:
-          kind: EC2NodeClass
-          group: karpenter.k8s.aws
-          version: v1
-        fieldPaths:
-          - spec.userData
-        options:
-          delimiter: ' '
-          index: 1
+# Common labels applied to all resources
+commonLabels:
+  blueprint: spark-on-eks
+  managed-by: argocd
+  component: karpenter-nodepools
 
-  - source:
-      kind: ConfigMap
-      name: cluster-config
-      fieldPath: data.karpenterRole
-    targets:
-      - select:
-          kind: EC2NodeClass
-          group: karpenter.k8s.aws
-          version: v1
-        fieldPaths:
-          - spec.role
+# Common annotations
+commonAnnotations:
+  karpenter.sh/version: "1.6.0"
+  blueprint.data-on-eks.io/name: "spark-on-eks"
+  blueprint.data-on-eks.io/version: "2.0"
 
-  - source:
-      kind: ConfigMap
-      name: cluster-config
-      fieldPath: data.clusterName
-    targets:
-      - select:
-          kind: EC2NodeClass
-          group: karpenter.k8s.aws
-          version: v1
-        fieldPaths:
-          - spec.subnetSelectorTerms.[tags=karpenter.sh/discovery]
-          - spec.securityGroupSelectorTerms.[tags=karpenter.sh/discovery]
+# Images to replace (if needed for custom AMIs)
+# images:
+#   - name: public.ecr.aws/eks-distro/kubernetes/pause
+#     newTag: "3.9-eks-1-31-1"
 
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: cluster-config
-data:
-  clusterName: "CLUSTER_NAME_PLACEHOLDER"
-  karpenterRole: "KARPENTER_ROLE_PLACEHOLDER"
+# Namespace for all resources
+namespace: karpenter
+
+# ConfigMap generation for cluster configuration
+configMapGenerator:
+  - name: karpenter-cluster-config
+    literals:
+      - cluster.name={{ .Values.clusterName }}
+      - cluster.endpoint={{ .Values.clusterEndpoint }}
+      - cluster.region={{ .Values.region }}
+      - karpenter.instance.profile={{ .Values.karpenterNodeInstanceProfile }}
+
+# Patches for environment-specific overrides
+patchesStrategicMerge:
+  - |-
+    apiVersion: karpenter.sh/v1
+    kind: NodePool
+    metadata:
+      name: spark-compute-optimized
+      namespace: karpenter
+    spec:
+      limits:
+        cpu: 2000
+        memory: 2000Gi
+  - |-
+    apiVersion: karpenter.sh/v1
+    kind: NodePool
+    metadata:
+      name: spark-memory-optimized
+      namespace: karpenter
+    spec:
+      limits:
+        cpu: 3000
+        memory: 6000Gi
+
+# JSON patches for advanced customization
+patchesJson6902:
+  - target:
+      group: karpenter.k8s.aws
+      version: v1
+      kind: EC2NodeClass
+      name: spark-compute-optimized
+    patch: |-
+      - op: replace
+        path: /spec/role
+        value: "{{ .Values.karpenterNodeInstanceProfile }}"
+      - op: replace
+        path: /spec/subnetSelectorTerms/0/tags/karpenter.sh~1discovery
+        value: "{{ .Values.clusterName }}"
+      - op: replace
+        path: /spec/securityGroupSelectorTerms/0/tags/karpenter.sh~1discovery
+        value: "{{ .Values.clusterName }}"
+  - target:
+      group: karpenter.k8s.aws
+      version: v1
+      kind: EC2NodeClass
+      name: spark-memory-optimized
+    patch: |-
+      - op: replace
+        path: /spec/role
+        value: "{{ .Values.karpenterNodeInstanceProfile }}"
+      - op: replace
+        path: /spec/subnetSelectorTerms/0/tags/karpenter.sh~1discovery
+        value: "{{ .Values.clusterName }}"
+      - op: replace
+        path: /spec/securityGroupSelectorTerms/0/tags/karpenter.sh~1discovery
+        value: "{{ .Values.clusterName }}"

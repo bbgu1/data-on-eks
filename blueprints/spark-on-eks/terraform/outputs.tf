@@ -48,9 +48,9 @@ output "configure_argocd" {
   value       = "kubectl port-forward svc/argocd-server -n argocd 8080:443"
 }
 
-output "karpenter_irsa_role_arn" {
-  description = "Karpenter IRSA role ARN for ArgoCD applications"
-  value       = module.eks_blueprint.karpenter_irsa_role_arn
+output "karpenter_pod_identity_role_arn" {
+  description = "Karpenter Pod Identity role ARN for ArgoCD applications"
+  value       = module.eks_blueprint.karpenter_pod_identity_role_arn
 }
 
 output "karpenter_node_instance_profile" {
@@ -58,7 +58,17 @@ output "karpenter_node_instance_profile" {
   value       = module.eks_blueprint.karpenter_node_instance_profile
 }
 
-output "spark_operator_irsa_role_arn" {
-  description = "Spark Operator IRSA role ARN"
-  value       = module.eks_blueprint.spark_operator_irsa_role_arn
+output "spark_operator_pod_identity_role_arn" {
+  description = "Spark Operator Pod Identity role ARN"
+  value       = aws_iam_role.spark_operator_pod_identity_role.arn
+}
+
+output "spark_jobs_pod_identity_role_arn" {
+  description = "Spark Jobs Pod Identity role ARN"
+  value       = aws_iam_role.spark_jobs_pod_identity_role.arn
+}
+
+output "s3_bucket_name" {
+  description = "S3 bucket name for Spark logs"
+  value       = module.s3_bucket.s3_bucket_id
 }
