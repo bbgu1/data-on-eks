@@ -49,16 +49,6 @@ output "eks_managed_node_groups" {
   value       = module.eks.eks_managed_node_groups
 }
 
-output "argocd_namespace" {
-  description = "ArgoCD namespace"
-  value       = var.enable_argocd ? kubernetes_namespace.argocd.metadata[0].name : null
-}
-
-output "argocd_server_endpoint" {
-  description = "ArgoCD server endpoint"
-  value       = var.enable_argocd ? "${var.argocd_domain}" : null
-}
-
 output "karpenter_irsa_role_arn" {
   description = "Karpenter IRSA role ARN"
   value       = try(module.karpenter_irsa.iam_role_arn, null)

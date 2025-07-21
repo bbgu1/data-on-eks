@@ -7,6 +7,90 @@ data "aws_iam_session_context" "current" {
   arn = data.aws_caller_identity.current.arn
 }
 
+data "aws_region" "current" {}
+data "aws_caller_identity" "current" {}
+
+locals {
+  tags = merge(var.tags, {
+    Blueprint  = var.name
+    GithubRepo = "github.com/awslabs/data-on-eks"
+  })
+
+  base_addons = {
+    for name, enabled in var.enable_cluster_addons :
+    name => {} if enabled
+  }
+
+  # Extended configurations used for specific addons with custom settings
+  addon_overrides = {
+    coredns                = {}
+    kube-proxy             = {}
+    vpc-cni = {
+      before_compute = true
+      preserve       = true
+      most_recent    = true
+      configuration_values = jsonencode({
+        env = {
+          # Reference docs https://docs.aws.amazon.com/eks/latest/userguide/cni-increase-ip-addresses.html
+          ENABLE_PREFIX_DELEGATION = "true"
+          WARM_PREFIX_TARGET       = "1"
+        }
+      })
+    }
+
+    eks-pod-identity-agent = {
+      before_compute = true
+    }
+
+    aws-ebs-csi-driver = {
+      service_account_role_arn = module.ebs_csi_driver_irsa.iam_role_arn
+      most_recent              = true
+    }
+
+    amazon-cloudwatch-observability = {
+      preserve                 = true
+      service_account_role_arn = aws_iam_role.cloudwatch_observability_role.arn
+    }
+
+    # aws-mountpoint-s3-csi-driver = var.enable_mountpoint_s3_csi ? {
+    #   service_account_role_arn = module.s3_csi_driver_irsa[0].iam_role_arn
+    #   } : {}
+  }
+
+  # Merge base with overrides
+  cluster_addons = {
+    for name, config in local.base_addons :
+    name => merge(config, lookup(local.addon_overrides, name, {}))
+  }
+
+  # Define the default core node group configuration
+  default_node_groups = {
+    core_node_group = {
+      name        = "core-node-group"
+      description = "EKS Core node group for hosting system add-ons"
+      subnet_ids = compact([for subnet_id, cidr_block in zipmap(var.private_subnets, var.private_subnets_cidr_blocks) :
+        substr(cidr_block, 0, 4) == "100." ? subnet_id : null]
+      )
+      ami_type     = "AL2023_x86_64_STANDARD"
+      min_size     = 2
+      max_size     = 8
+      desired_size = 2
+
+      instance_types = ["m5.xlarge"]
+
+      labels = {
+        WorkerType    = "ON_DEMAND"
+        NodeGroupType = "core"
+      }
+
+      tags = merge(local.tags, {
+        Name = "core-node-grp"
+      })
+    }
+  }
+
+}
+
 #---------------------------------------------------------------
 # EKS Cluster
 #---------------------------------------------------------------
@@ -24,38 +108,8 @@ module "eks" {
   authentication_mode                      = "API_AND_CONFIG_MAP"
   enable_cluster_creator_admin_permissions = true
 
-  #---------------------------------------
-  # Amazon EKS Managed Add-ons
-  #---------------------------------------
-  cluster_addons = {
-    coredns                = {}
-    eks-pod-identity-agent = {}
-    vpc-cni = {
-      before_compute = true
-      preserve       = true
-      most_recent    = true
-      configuration_values = jsonencode({
-        env = {
-          # Reference docs https://docs.aws.amazon.com/eks/latest/userguide/cni-increase-ip-addresses.html
-          ENABLE_PREFIX_DELEGATION = "true"
-          WARM_PREFIX_TARGET       = "1"
-        }
-      })
-    }
-    kube-proxy = {}
-    aws-ebs-csi-driver = {
-      service_account_role_arn = module.ebs_csi_driver_irsa.iam_role_arn
-      most_recent              = true
-    }
-    aws-mountpoint-s3-csi-driver = var.enable_mountpoint_s3_csi ? {
-      service_account_role_arn = module.s3_csi_driver_irsa[0].iam_role_arn
-    } : {}
-    metrics-server = {}
-    amazon-cloudwatch-observability = var.enable_cloudwatch_observability ? {
-      preserve                 = true
-      service_account_role_arn = aws_iam_role.cloudwatch_observability_role[0].arn
-    } : {}
-  }
+  # EKS Add-ons
+  cluster_addons = local.cluster_addons
 
   vpc_id = var.vpc_id
   # Filtering only Secondary CIDR private subnets starting with "100.". Subnet IDs where the EKS Control Plane ENIs will be created
@@ -128,7 +182,8 @@ module "eks" {
     }
   }
 
-  eks_managed_node_groups = var.managed_node_groups
+  # Merge the default node groups with user-provided node groups
+  eks_managed_node_groups = merge(local.default_node_groups, var.managed_node_groups)
 
   tags = var.tags
 }

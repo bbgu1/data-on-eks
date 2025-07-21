@@ -225,6 +225,3 @@ resource "aws_iam_policy" "spark_operator_policy" {
 
   tags = var.tags
 }
-
-data "aws_region" "current" {}
-data "aws_caller_identity" "current" {}

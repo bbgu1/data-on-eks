@@ -40,56 +40,29 @@ resource "kubernetes_storage_class" "ebs_csi_encrypted_gp3_storage_class" {
 #---------------------------------------------------------------
 # ArgoCD Installation via Terraform
 #---------------------------------------------------------------
-resource "kubernetes_namespace" "argocd" {
-  metadata {
-    name = "argocd"
-  }
-  
-  depends_on = [module.eks]
-}
-
 resource "helm_release" "argocd" {
-  count      = var.enable_argocd ? 1 : 0
   name       = "argocd"
   repository = "https://argoproj.github.io/argo-helm"
   chart      = "argo-cd"
-  version    = var.argocd_chart_version
-  namespace  = kubernetes_namespace.argocd.metadata[0].name
+  version    = "8.1.1"
+  namespace  = "argocd"
+  create_namespace = true
 
   values = [
     <<-EOT
-    global:
-      domain: ${var.argocd_domain}
-    
     configs:
-      params:
-        server.insecure: true
-        server.disable.auth: false
-    
-    server:
-      service:
-        type: ${var.argocd_service_type}
+      cm:
+        kustomize.buildOptions: --enable-helm
+        application.resourceTrackingMethod: annotation
       
-      ingress:
-        enabled: ${var.argocd_ingress_enabled}
-        ingressClassName: nginx
-        hosts:
-          - ${var.argocd_domain}
-        tls:
-          - secretName: argocd-server-tls
-            hosts:
-              - ${var.argocd_domain}
-    
     dex:
       enabled: false
     
     notifications:
       enabled: false
     
-    applicationSet:
-      enabled: true
     EOT
   ]
 
-  depends_on = [kubernetes_namespace.argocd]
+  depends_on = [module.eks.eks_cluster_id]
 }

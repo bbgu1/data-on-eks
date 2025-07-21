@@ -2,7 +2,6 @@
 # EKS Amazon CloudWatch Observability Role
 #---------------------------------------------------------------
 resource "aws_iam_role" "cloudwatch_observability_role" {
-  count = var.enable_cloudwatch_observability ? 1 : 0
   name  = "${var.name}-eks-cw-agent-role"
 
   assume_role_policy = jsonencode({
@@ -26,9 +25,8 @@ resource "aws_iam_role" "cloudwatch_observability_role" {
 }
 
 resource "aws_iam_role_policy_attachment" "cloudwatch_observability_policy_attachment" {
-  count      = var.enable_cloudwatch_observability ? 1 : 0
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
-  role       = aws_iam_role.cloudwatch_observability_role[0].name
+  role       = aws_iam_role.cloudwatch_observability_role.name
 }
 
 #---------------------------------------------------------------
@@ -52,13 +50,11 @@ module "ebs_csi_driver_irsa" {
 # IRSA for Mountpoint S3 CSI Driver
 #---------------------------------------------------------------
 module "s3_csi_driver_irsa" {
-  count            = var.enable_mountpoint_s3_csi ? 1 : 0
   source           = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
   version          = "~> 5.55"
   role_name_prefix = format("%s-%s-", var.name, "s3-csi-driver")
   role_policy_arns = {
-    # WARNING: Demo purpose only. Bring your own IAM policy with least privileges
-    s3_access = var.enable_mountpoint_s3_csi ? aws_iam_policy.s3_irsa_access_policy[0].arn : null
+    s3_access = aws_iam_policy.s3_irsa_access_policy.arn
   }
   oidc_providers = {
     main = {
@@ -70,17 +66,10 @@ module "s3_csi_driver_irsa" {
 }
 
 resource "aws_iam_policy" "s3_irsa_access_policy" {
-  count       = var.enable_mountpoint_s3_csi ? 1 : 0
   name        = "${var.name}-S3Access"
   path        = "/"
   description = "S3 Access for Nodes"
 
-  # Terraform's "jsonencode" function converts a
-  # Terraform expression result to valid JSON syntax.
-  # checkov:skip=CKV_AWS_288: Demo purpose IAM policy
-  # checkov:skip=CKV_AWS_290: Demo purpose IAM policy
-  # checkov:skip=CKV_AWS_289: Demo purpose IAM policy
-  # checkov:skip=CKV_AWS_355: Demo purpose IAM policy
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
