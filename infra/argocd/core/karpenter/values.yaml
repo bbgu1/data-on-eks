@@ -1,0 +1,88 @@
+# Karpenter - Base Configuration for ALL Blueprints
+# This provides sensible defaults that blueprints can override
+
+global:
+  clusterName: ""
+  region: ""
+  environment: "dev"
+
+karpenter:
+  # Global settings
+  settings:
+    clusterName: "{{ .Values.global.clusterName }}"
+    clusterEndpoint: "{{ .Values.global.clusterEndpoint }}"
+    interruptionQueue: "{{ .Values.global.clusterName }}"
+    
+  # Controller configuration
+  controller:
+    replicas: 2
+    
+    resources:
+      requests:
+        cpu: 1
+        memory: 1Gi
+      limits:
+        cpu: 1
+        memory: 1Gi
+    
+    # Security context
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 65534
+      runAsGroup: 65534
+      fsGroup: 65534
+  
+  # Observability
+  serviceMonitor:
+    enabled: true
+  
+  # Pod disruption budget
+  podDisruptionBudget:
+    name: karpenter
+    maxUnavailable: 1
+
+# Default node pool template (blueprints override this)
+nodePoolDefaults:
+  metadata:
+    labels:
+      managed-by: karpenter
+  
+  spec:
+    requirements:
+      - key: "karpenter.sh/capacity-type"
+        operator: In
+        values: ["spot", "on-demand"]
+      - key: "kubernetes.io/arch"
+        operator: In
+        values: ["amd64"]
+    
+    disruption:
+      consolidationPolicy: WhenEmpty
+      consolidateAfter: 30s
+    
+    limits:
+      cpu: 1000
+      memory: 1000Gi
+
+# Default EC2NodeClass template (blueprints override this)
+ec2NodeClassDefaults:
+  spec:
+    amiFamily: AL2023
+    
+    subnetSelectorTerms:
+      - tags:
+          karpenter.sh/discovery: "{{ .Values.global.clusterName }}"
+          Type: "Private"
+    
+    securityGroupSelectorTerms:
+      - tags:
+          karpenter.sh/discovery: "{{ .Values.global.clusterName }}"
+          Type: "ClusterSharedNodeSecurityGroup"
+    
+    metadataOptions:
+      httpEndpoint: enabled
+      httpProtocolIPv6: disabled
+      httpPutResponseHopLimit: 2
+      httpTokens: required
+    
+    detailedMonitoring: true

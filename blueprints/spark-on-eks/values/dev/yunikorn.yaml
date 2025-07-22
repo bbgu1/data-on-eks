@@ -1,0 +1,106 @@
+# Apache YuniKorn - Spark on EKS Configuration
+
+yunikorn:
+  # Enhanced scheduler resources for Spark workloads
+  scheduler:
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        cpu: 1000m
+        memory: 2Gi
+    
+    # Spark-optimized configuration
+    configuration: |
+      partitions:
+        - name: default
+          placementrules:
+            - name: tag
+              value: namespace
+              create: true
+          queues:
+            - name: root
+              submitacl: "*"
+              properties:
+                preemption.policy: "fence"
+                preemption.delay: "30s"
+                application.sort.policy: "stateaware"
+              resources:
+                guaranteed:
+                  memory: 5000Gi
+                  vcore: 5000
+                max:
+                  memory: 50000Gi
+                  vcore: 50000
+              children:
+                - name: spark-team-a
+                  resources:
+                    guaranteed:
+                      memory: 1000Gi
+                      vcore: 1000
+                    max:
+                      memory: 10000Gi
+                      vcore: 10000
+                - name: spark-team-b
+                  resources:
+                    guaranteed:
+                      memory: 1000Gi
+                      vcore: 1000
+                    max:
+                      memory: 10000Gi
+                      vcore: 10000
+                - name: spark-team-c
+                  resources:
+                    guaranteed:
+                      memory: 500Gi
+                      vcore: 500
+                    max:
+                      memory: 5000Gi
+                      vcore: 5000
+
+  # Enhanced admission controller
+  admissionController:
+    resources:
+      requests:
+        cpu: 200m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+  # Web UI access
+  webui:
+    enabled: true
+    service:
+      type: ClusterIP
+      port: 9889
+    
+    # Ingress for access
+    ingress:
+      enabled: true
+      className: nginx
+      annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: /
+      hosts:
+        - host: "yunikorn.{{ .Values.global.clusterName }}.local"
+          paths:
+            - path: /
+              pathType: Prefix
+
+  # Node placement for Spark environment
+  nodeSelector:
+    type: karpenter
+    kubernetes.io/arch: "amd64"
+
+  # Tolerations for Spark nodes
+  tolerations:
+    - key: "spark.apache.org/node-type"
+      operator: "Equal"
+      effect: "NoSchedule"
+
+  # Service Account
+  serviceAccount:
+    create: true
+    annotations:
+      eks.amazonaws.com/pod-identity-association: "yunikorn-scheduler"

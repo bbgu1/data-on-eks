@@ -1,0 +1,21 @@
+apiVersion: v2
+name: spark-operator
+description: Reusable Spark Operator addon for data blueprints
+version: 2.2.0
+appVersion: "2.2.0"
+type: application
+
+maintainers:
+  - name: Data on EKS Team
+    email: data-on-eks@amazon.com
+
+keywords:
+  - spark
+  - big-data
+  - analytics
+  - kubernetes
+
+dependencies:
+  - name: spark-operator
+    version: "2.2.0"
+    repository: "https://googlecloudplatform.github.io/spark-on-k8s-operator"

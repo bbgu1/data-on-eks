@@ -1,0 +1,162 @@
+# Prometheus Stack - Spark on EKS Configuration
+
+kube-prometheus-stack:
+  # Prometheus configuration for Spark monitoring
+  prometheus:
+    prometheusSpec:
+      # Enhanced resources for Spark workloads
+      resources:
+        requests:
+          memory: 1Gi
+          cpu: 200m
+        limits:
+          memory: 4Gi
+          cpu: 1000m
+      
+      # Extended retention for Spark metrics
+      retention: 30d
+      retentionSize: 50GB
+      
+      # Larger storage for Spark metrics
+      storageSpec:
+        volumeClaimTemplate:
+          spec:
+            storageClassName: gp3
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: 100Gi
+      
+      # External labels for this cluster
+      externalLabels:
+        cluster: "{{ .Values.global.clusterName }}"
+        environment: "{{ .Values.global.environment }}"
+        blueprint: "spark-on-eks"
+      
+      # Additional scrape configs for Spark
+      additionalScrapeConfigs:
+        - job_name: 'spark-applications'
+          kubernetes_sd_configs:
+            - role: pod
+              namespaces:
+                names:
+                  - spark-operator
+                  - spark-team-a
+                  - spark-team-b
+                  - spark-team-c
+          relabel_configs:
+            - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+              action: keep
+              regex: true
+            - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+              action: replace
+              target_label: __metrics_path__
+              regex: (.+)
+            - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+              action: replace
+              regex: ([^:]+)(?::\d+)?;(\d+)
+              replacement: $1:$2
+              target_label: __address__
+
+  # Grafana configuration for Spark monitoring
+  grafana:
+    # Enhanced resources
+    resources:
+      requests:
+        memory: 512Mi
+        cpu: 200m
+      limits:
+        memory: 2Gi
+        cpu: 500m
+    
+    # Larger persistence
+    persistence:
+      size: 20Gi
+    
+    # Ingress for access
+    ingress:
+      enabled: true
+      ingressClassName: nginx
+      annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: /
+      hosts:
+        - "grafana.{{ .Values.global.clusterName }}.local"
+      tls: []
+    
+    # Spark-specific dashboards
+    dashboards:
+      default:
+        spark-dashboard:
+          gnetId: 8685
+          revision: 1
+          datasource: Prometheus
+        spark-operator-dashboard:
+          gnetId: 14000
+          revision: 1
+          datasource: Prometheus
+        kubernetes-cluster-monitoring:
+          gnetId: 7249
+          revision: 1
+          datasource: Prometheus
+        kubernetes-pod-monitoring:
+          gnetId: 6417
+          revision: 1
+          datasource: Prometheus
+        karpenter-dashboard:
+          gnetId: 14843
+          revision: 1
+          datasource: Prometheus
+    
+    # Additional data sources
+    additionalDataSources:
+      - name: CloudWatch
+        type: cloudwatch
+        access: proxy
+        jsonData:
+          authType: default
+          defaultRegion: "{{ .Values.global.region }}"
+
+  # Enhanced Alertmanager for production
+  alertmanager:
+    alertmanagerSpec:
+      resources:
+        requests:
+          memory: 256Mi
+          cpu: 100m
+        limits:
+          memory: 1Gi
+          cpu: 200m
+      
+      storage:
+        volumeClaimTemplate:
+          spec:
+            resources:
+              requests:
+                storage: 10Gi
+
+  # Node placement for monitoring components
+  prometheus:
+    prometheusSpec:
+      nodeSelector:
+        kubernetes.io/arch: "amd64"
+      tolerations:
+        - key: "spark.apache.org/node-type"
+          operator: "Equal"
+          effect: "NoSchedule"
+      
+  grafana:
+    nodeSelector:
+      kubernetes.io/arch: "amd64"
+    tolerations:
+      - key: "spark.apache.org/node-type"
+        operator: "Equal"
+        effect: "NoSchedule"
+
+  alertmanager:
+    alertmanagerSpec:
+      nodeSelector:
+        kubernetes.io/arch: "amd64"
+      tolerations:
+        - key: "spark.apache.org/node-type"
+          operator: "Equal"
+          effect: "NoSchedule"

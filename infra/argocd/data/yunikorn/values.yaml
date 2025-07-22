@@ -1,0 +1,83 @@
+# Apache YuniKorn - Base Configuration
+
+yunikorn:
+  # Image configuration
+  image:
+    repository: apache/yunikorn
+    tag: "scheduler-1.6.3"
+    pullPolicy: IfNotPresent
+
+  # Admission controller
+  admissionController:
+    image:
+      repository: apache/yunikorn
+      tag: "admission-1.6.3"
+    
+    # Resources
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+
+  # Scheduler configuration
+  scheduler:
+    # Resources
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: 500m
+        memory: 1Gi
+    
+    # Configuration
+    configuration: |
+      partitions:
+        - name: default
+          placementrules:
+            - name: tag
+              value: namespace
+              create: true
+          queues:
+            - name: root
+              submitacl: "*"
+              properties:
+                preemption.policy: "fence"
+              resources:
+                guaranteed:
+                  memory: 1000Gi
+                  vcore: 1000
+                max:
+                  memory: 10000Gi
+                  vcore: 10000
+
+  # Service Account
+  serviceAccount:
+    create: true
+    annotations: {}
+
+  # RBAC
+  rbac:
+    create: true
+
+  # Web UI
+  webui:
+    enabled: true
+    service:
+      type: ClusterIP
+      port: 9889
+
+  # Node selector
+  nodeSelector:
+    kubernetes.io/arch: "amd64"
+
+  # Tolerations
+  tolerations: []
+
+# Global values
+global:
+  clusterName: ""
+  environment: "dev"

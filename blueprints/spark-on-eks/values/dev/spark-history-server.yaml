@@ -1,0 +1,114 @@
+# Spark History Server - Spark on EKS Blueprint Configuration
+
+spark-history-server:
+  # Production-ready resources for Spark History Server
+  resources:
+    requests:
+      cpu: 200m
+      memory: 1Gi
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+
+  # Spark-specific configuration
+  sparkConf:
+    spark.history.ui.port: "18080"
+    spark.history.retainedApplications: "100"
+    spark.history.fs.cleaner.enabled: "true"
+    spark.history.fs.cleaner.interval: "12h"
+    spark.history.fs.cleaner.maxAge: "30d"
+    spark.sql.ui.retainedExecutions: "100"
+    spark.ui.retainedJobs: "100"
+    spark.ui.retainedStages: "100"
+    spark.worker.ui.retainedExecutors: "100"
+    spark.worker.ui.retainedDrivers: "100"
+
+  # Environment variables for S3 access
+  env:
+    - name: SPARK_HISTORY_OPTS
+      value: "-Dspark.history.fs.logDirectory=s3a://{{ .Values.global.s3BucketName }}/spark-event-logs/"
+    - name: AWS_REGION
+      value: "{{ .Values.global.region }}"
+
+  # Service configuration for access
+  service:
+    type: ClusterIP
+    port: 18080
+    targetPort: 18080
+    annotations:
+      service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+
+  # Ingress for external access (optional)
+  ingress:
+    enabled: true
+    className: "nginx"
+    annotations:
+      nginx.ingress.kubernetes.io/rewrite-target: /
+      nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    hosts:
+      - host: "spark-history.{{ .Values.global.clusterName }}.local"
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []
+
+  # Pod placement for Spark workloads
+  nodeSelector:
+    type: karpenter
+    kubernetes.io/arch: "amd64"
+
+  # Tolerations for Spark nodes
+  tolerations:
+    - key: "spark.apache.org/node-type"
+      operator: "Equal"
+      value: "compute-optimized"
+      effect: "NoSchedule"
+
+  # Anti-affinity to spread across nodes
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - spark-history-server
+            topologyKey: kubernetes.io/hostname
+
+  # Service Account with Pod Identity
+  serviceAccount:
+    create: true
+    annotations:
+      eks.amazonaws.com/pod-identity-association: "spark-operator"
+    name: "spark-history-server"
+
+  # Additional pod annotations for monitoring
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "18080"
+    prometheus.io/path: "/metrics/prometheus"
+    cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
+
+  # Security hardening
+  securityContext:
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    capabilities:
+      drop:
+        - ALL
+
+  podSecurityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+
+# Override global values for this blueprint
+global:
+  environment: "dev"

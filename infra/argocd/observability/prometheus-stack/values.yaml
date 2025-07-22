@@ -1,0 +1,136 @@
+# Kube Prometheus Stack - Base Configuration
+# This provides base values that can be overridden by blueprints
+
+kube-prometheus-stack:
+  # Prometheus configuration
+  prometheus:
+    enabled: true
+    prometheusSpec:
+      # Resource requirements - conservative defaults
+      resources:
+        requests:
+          memory: 512Mi
+          cpu: 100m
+        limits:
+          memory: 1Gi
+          cpu: 500m
+      
+      # Retention settings
+      retention: 7d
+      retentionSize: 10GB
+      
+      # Storage configuration
+      storageSpec:
+        volumeClaimTemplate:
+          spec:
+            storageClassName: gp3
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: 20Gi
+      
+      # Service monitor selectors
+      serviceMonitorSelectorNilUsesHelmValues: false
+      podMonitorSelectorNilUsesHelmValues: false
+      ruleSelectorNilUsesHelmValues: false
+      
+      # External labels
+      externalLabels:
+        cluster: ""
+        environment: ""
+
+  # Grafana configuration
+  grafana:
+    enabled: true
+    
+    # Admin credentials (password will be overridden)
+    admin:
+      existingSecret: "grafana-admin-secret"
+      userKey: username
+      passwordKey: password
+    
+    # Resources
+    resources:
+      requests:
+        memory: 256Mi
+        cpu: 100m
+      limits:
+        memory: 512Mi
+        cpu: 200m
+    
+    # Persistence
+    persistence:
+      enabled: true
+      type: pvc
+      storageClassName: gp3
+      accessModes:
+        - ReadWriteOnce
+      size: 10Gi
+    
+    # Service configuration
+    service:
+      type: ClusterIP
+      port: 80
+    
+    # Ingress (disabled by default)
+    ingress:
+      enabled: false
+    
+    # Default dashboards
+    defaultDashboardsEnabled: true
+    
+    # Additional dashboards
+    dashboards:
+      default:
+        spark-dashboard:
+          gnetId: 8685
+          revision: 1
+          datasource: Prometheus
+
+  # Alertmanager configuration
+  alertmanager:
+    enabled: true
+    alertmanagerSpec:
+      resources:
+        requests:
+          memory: 128Mi
+          cpu: 50m
+        limits:
+          memory: 256Mi
+          cpu: 100m
+      
+      storage:
+        volumeClaimTemplate:
+          spec:
+            storageClassName: gp3
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: 5Gi
+
+  # Node Exporter
+  nodeExporter:
+    enabled: true
+
+  # Kube State Metrics  
+  kubeStateMetrics:
+    enabled: true
+
+  # Prometheus Operator
+  prometheusOperator:
+    enabled: true
+    
+    # Resources
+    resources:
+      requests:
+        memory: 256Mi
+        cpu: 100m
+      limits:
+        memory: 512Mi
+        cpu: 200m
+
+# Global values
+global:
+  clusterName: ""
+  environment: "dev"
+  region: ""

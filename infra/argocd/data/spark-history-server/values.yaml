@@ -1,0 +1,86 @@
+# Spark History Server - Base Configuration
+# This provides base values that can be overridden by blueprints
+
+spark-history-server:
+  # Image configuration
+  image:
+    repository: apache/spark
+    tag: "3.5.3"
+    pullPolicy: IfNotPresent
+
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 18080
+    targetPort: 18080
+
+  # Resources - conservative defaults for dev
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+
+  # Pod annotations
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "18080"
+    prometheus.io/path: "/metrics/prometheus"
+
+  # Security context
+  securityContext:
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+
+  # Pod security context
+  podSecurityContext:
+    runAsNonRoot: true
+
+  # Node selector for placement
+  nodeSelector:
+    kubernetes.io/arch: "amd64"
+
+  # Tolerations for scheduling
+  tolerations: []
+
+  # Affinity rules
+  affinity: {}
+
+  # Ingress configuration (disabled by default)
+  ingress:
+    enabled: false
+    className: ""
+    annotations: {}
+    hosts: []
+    tls: []
+
+  # Spark configuration (to be overridden by blueprint)
+  sparkConf:
+    spark.history.ui.port: "18080"
+    spark.history.retainedApplications: "50"
+    spark.history.fs.cleaner.enabled: "true"
+    spark.history.fs.cleaner.interval: "1d"
+    spark.history.fs.cleaner.maxAge: "7d"
+
+  # Environment variables (S3 path will be set by blueprint)
+  env: []
+
+  # Service Account
+  serviceAccount:
+    create: true
+    annotations: {}
+    name: ""
+
+  # RBAC
+  rbac:
+    create: true
+
+# Global values that can be overridden
+global:
+  clusterName: ""
+  environment: "dev"
+  region: ""
+  s3BucketName: ""
