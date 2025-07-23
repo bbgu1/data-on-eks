@@ -16,13 +16,57 @@ data "aws_partition" "current" {}
 
 # Data sources for cluster authentication
 data "aws_eks_cluster_auth" "cluster" {
-  name = module.eks.cluster_name
+  name = module.eks_blueprint.cluster_name
+}
+
+#---------------------------------------------------------------
+# Provider Configurations
+#---------------------------------------------------------------
+
+# Configure AWS Provider
+provider "aws" {
+  region = var.region
+  
+  default_tags {
+    tags = local.tags
+  }
+}
+
+# ECR always authenticates with us-east-1 region
+provider "aws" {
+  alias  = "ecr"
+  region = "us-east-1"
+}
+
+# Configure Kubernetes Provider
+provider "kubernetes" {
+  host                   = module.eks_blueprint.cluster_endpoint
+  cluster_ca_certificate = base64decode(module.eks_blueprint.cluster_certificate_authority_data)
+  token                  = data.aws_eks_cluster_auth.cluster.token
+}
+
+# Configure Helm Provider
+provider "helm" {
+  kubernetes {
+    host                   = module.eks_blueprint.cluster_endpoint
+    cluster_ca_certificate = base64decode(module.eks_blueprint.cluster_certificate_authority_data)
+    token                  = data.aws_eks_cluster_auth.cluster.token
+  }
+}
+
+# Configure kubectl Provider
+provider "kubectl" {
+  apply_retry_count      = 10
+  host                   = module.eks_blueprint.cluster_endpoint
+  cluster_ca_certificate = base64decode(module.eks_blueprint.cluster_certificate_authority_data)
+  load_config_file       = false
+  token                  = data.aws_eks_cluster_auth.cluster.token
 }
 
 #---------------------------------------------------------------
 # VPC using base module
 #---------------------------------------------------------------
-module "vpc" {
+module "vpc_blueprint" {
   source = "../../../infra/terraform/vpc"
 
   name            = local.name
@@ -44,16 +88,16 @@ module "vpc" {
 #---------------------------------------------------------------
 # EKS Cluster using base module
 #---------------------------------------------------------------
-module "eks" {
+module "eks_blueprint" {
   source = "../../../infra/terraform/eks"
 
   name                           = local.name
   eks_cluster_version            = var.eks_cluster_version
   cluster_endpoint_public_access = var.cluster_endpoint_public_access
 
-  vpc_id                      = module.vpc.vpc_id
-  private_subnets             = module.vpc.private_subnets
-  private_subnets_cidr_blocks = module.vpc.private_subnets_cidr_blocks
+  vpc_id                      = module.vpc_blueprint.vpc_id
+  private_subnets             = module.vpc_blueprint.private_subnets
+  private_subnets_cidr_blocks = module.vpc_blueprint.private_subnets_cidr_blocks
 
   kms_key_admin_roles = var.kms_key_admin_roles
 
@@ -111,7 +155,7 @@ resource "kubernetes_annotations" "gp2_default" {
   }
   force = true
 
-  depends_on = [module.eks]
+  depends_on = [module.eks_blueprint]
 }
 
 resource "kubernetes_storage_class" "ebs_csi_encrypted_gp3_storage_class" {
@@ -139,8 +183,8 @@ resource "kubernetes_storage_class" "ebs_csi_encrypted_gp3_storage_class" {
 # Karpenter Access Entry for Node IAM Role
 #---------------------------------------------------------------
 resource "aws_eks_access_entry" "karpenter_nodes" {
-  cluster_name  = module.eks.cluster_name
-  principal_arn = module.eks.karpenter_node_iam_role_arn
+  cluster_name  = module.eks_blueprint.cluster_name
+  principal_arn = module.eks_blueprint.karpenter_node_iam_role_arn
   type          = "EC2_LINUX"
 }
 
@@ -165,127 +209,6 @@ resource "aws_secretsmanager_secret_version" "grafana" {
 }
 
 #---------------------------------------------------------------
-# Data on EKS Kubernetes Addons (for backward compatibility)
-#---------------------------------------------------------------
-# We include a minimal configuration here for teams that may depend on this module
-# The main addons are now managed via ArgoCD
-module "eks_data_addons" {
-  source  = "aws-ia/eks-data-addons/aws"
-  version = "~> 1.37"
-
-  oidc_provider_arn = module.eks.oidc_provider_arn
-
-  # Essential addons only - ArgoCD will manage the rest
-  enable_karpenter           = true
-  enable_spark_operator      = false # Managed by ArgoCD
-  enable_spark_history_server = false # Managed by ArgoCD
-  enable_yunikorn            = false # Managed by ArgoCD
-
-  # Karpenter configuration
-  karpenter_helm_config = {
-    timeout = "300"
-    values = [
-      <<-EOT
-        nodeClassRef:
-          apiVersion: karpenter.k8s.aws/v1beta1
-          kind: EC2NodeClass
-          name: karpenter-nodeclass
-        
-        controller:
-          resources:
-            requests:
-              cpu: 1
-              memory: 1Gi
-            limits:
-              cpu: 1
-              memory: 1Gi
-      EOT
-    ]
-  }
-}
-
-#---------------------------------------------------------------
-# EKS Blueprints Addons (Core Infrastructure)
-#---------------------------------------------------------------
-module "eks_blueprints_addons" {
-  source  = "aws-ia/eks-blueprints-addons/aws"
-  version = "~> 1.20"
-
-  cluster_name      = module.eks.cluster_name
-  cluster_endpoint  = module.eks.cluster_endpoint
-  cluster_version   = module.eks.cluster_version
-  oidc_provider_arn = module.eks.oidc_provider_arn
-
-  # EKS Managed Addons
-  eks_addons = {
-    coredns    = { most_recent = true }
-    kube-proxy = { most_recent = true }
-    vpc-cni    = { most_recent = true }
-    
-    aws-ebs-csi-driver = {
-      most_recent              = true
-      service_account_role_arn = module.eks.ebs_csi_iam_role_arn
-    }
-    
-    aws-s3-csi-driver = {
-      most_recent              = true
-      service_account_role_arn = module.eks.s3_csi_iam_role_arn
-    }
-  }
-
-  # AWS Load Balancer Controller
-  enable_aws_load_balancer_controller = true
-  aws_load_balancer_controller = {
-    service_account_role_arn = module.eks.aws_load_balancer_controller_iam_role_arn
-  }
-
-  # CoreDNS addon configuration
-  enable_coredns_cluster_proportional_autoscaler = true
-
-  # Ingress controllers
-  enable_ingress_nginx = true
-
-  # ArgoCD for GitOps
-  enable_argocd = true
-  argocd = {
-    values = [
-      <<-EOT
-        configs:
-          cm:
-            application.instanceLabelKey: argocd.argoproj.io/instance
-            server.rbac.log.enforce.enable: false
-            exec.enabled: true
-            admin.enabled: true
-            timeout.reconciliation: 300s
-            oidc.config: ""
-            
-          params:
-            application.namespaces: "*"
-            server.insecure: true
-            
-        dex:
-          enabled: false
-          
-        server:
-          service:
-            type: ClusterIP
-          
-          ingress:
-            enabled: true
-            ingressClassName: nginx
-            annotations:
-              nginx.ingress.kubernetes.io/rewrite-target: /
-              nginx.ingress.kubernetes.io/backend-protocol: HTTP
-            hosts:
-              - argocd.${local.name}.local
-      EOT
-    ]
-  }
-
-  tags = local.tags
-}
-
-#---------------------------------------------------------------
 # Create Spark team namespaces
 #---------------------------------------------------------------
 resource "kubernetes_namespace" "spark_teams" {
@@ -303,5 +226,5 @@ resource "kubernetes_namespace" "spark_teams" {
     }
   }
 
-  depends_on = [module.eks]
+  depends_on = [module.eks_blueprint]
 }

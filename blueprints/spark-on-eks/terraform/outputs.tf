@@ -1,16 +1,16 @@
 output "cluster_name" {
   description = "EKS cluster name"
-  value       = module.eks.cluster_name
+  value       = module.eks_blueprint.cluster_name
 }
 
 output "cluster_endpoint" {
   description = "Endpoint for EKS control plane"
-  value       = module.eks.cluster_endpoint
+  value       = module.eks_blueprint.cluster_endpoint
 }
 
 output "cluster_version" {
   description = "The Kubernetes version for the EKS cluster"
-  value       = module.eks.cluster_version
+  value       = module.eks_blueprint.cluster_version
 }
 
 output "region" {
@@ -20,12 +20,12 @@ output "region" {
 
 output "vpc_id" {
   description = "ID of the VPC where cluster is deployed"
-  value       = module.vpc.vpc_id
+  value       = module.vpc_blueprint.vpc_id
 }
 
 output "private_subnets" {
   description = "List of IDs of private subnets"
-  value       = module.vpc.private_subnets
+  value       = module.vpc_blueprint.private_subnets
 }
 
 output "s3_bucket_name" {
