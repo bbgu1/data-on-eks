@@ -48,3 +48,13 @@ output "configure_kubectl" {
 #   value       = "kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d"
 #   sensitive   = true
 # }
+
+output "spark_teams_roles" {
+  description = "Map of Spark team names to their Pod Identity role ARNs"
+  value       = module.spark_teams.team_roles
+}
+
+output "spark_teams_associations" {
+  description = "Map of Spark team Pod Identity association details"
+  value       = module.spark_teams.pod_identity_associations
+}

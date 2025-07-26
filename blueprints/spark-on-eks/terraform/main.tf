@@ -73,15 +73,6 @@ module "vpc_blueprint" {
   vpc_cidr        = var.vpc_cidr
   secondary_cidrs = var.secondary_cidrs
 
-  public_subnet_tags = {
-    "kubernetes.io/role/elb" = 1
-  }
-
-  private_subnet_tags = {
-    "kubernetes.io/role/internal-elb" = 1
-    "karpenter.sh/discovery"          = local.name
-  }
-
   tags = local.tags
 }
 

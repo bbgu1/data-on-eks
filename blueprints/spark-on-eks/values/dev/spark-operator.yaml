@@ -1,12 +1,11 @@
 # Spark on EKS - Spark Operator Overrides for Dev Environment
-# Overrides base spark-operator config from infra/argocd/data/spark-operator/values.yaml
+# Simple configuration for development workloads
 
-# Override for dev environment
-spark-operator:
+# Dev controller settings
+sparkOperator:
   controller:
-    replicas: 1  # Single replica for dev
-    workers: 5   # Reduced workers for dev
-
+    replicas: 1
+    
     resources:
       requests:
         cpu: 100m
@@ -16,8 +15,8 @@ spark-operator:
         memory: 512Mi
 
   webhook:
-    replicas: 1  # Single webhook for dev
-
+    replicas: 1
+    
     resources:
       requests:
         cpu: 50m
@@ -26,153 +25,36 @@ spark-operator:
         cpu: 200m
         memory: 256Mi
 
-  # Dev-specific Spark namespaces
-  spark:
-    jobNamespaces:
-      - default
-      - spark-dev
-      - spark-examples
-      - spark-team-a  # Dev team namespace
+# Simple Spark defaults for dev
+sparkDefaults:
+  # Basic resource settings
+  driver:
+    cores: 1
+    memory: "1g"
+  
+  executor:
+    cores: 1
+    memory: "2g"
+    instances: 2
+  
+  # Event logging
+  eventLog:
+    enabled: true
+    dir: "s3a://spark-on-eks-dev-logs/events"
+  
+  # Dev labels
+  labels:
+    environment: "dev"
+    blueprint: "spark-on-eks"
 
-    # Dev-specific RBAC (more permissive for experimentation)
-    rbac:
-      create: true
-      createClusterRole: true
+# Dev monitoring
+monitoring:
+  enabled: true
+  
+  metrics:
+    enabled: true
+    port: 8080
 
-  # Dev-specific Spark application defaults
-  sparkDefaults:
-    # Adaptive query execution
-    spark.sql.adaptive.enabled: "true"
-    spark.sql.adaptive.coalescePartitions.enabled: "true"
-    spark.kubernetes.allocation.batch.size: "10"  # Smaller batches for dev
-    spark.kubernetes.allocation.batch.delay: "5s"
-
-    # Dev resource defaults (smaller than prod)
-    spark.executor.instances: "2"
-    spark.executor.cores: "1"
-    spark.executor.memory: "2g"
-    spark.driver.cores: "1"
-    spark.driver.memory: "1g"
-
-    # Shuffle optimization for dev
-    spark.sql.shuffle.partitions: "200"
-    spark.kubernetes.executor.deleteOnTermination: "true"
-
-    # Event logging for dev debugging
-    spark.ui.enabled: "true"
-    spark.eventLog.enabled: "true"
-    spark.eventLog.dir: "s3a://{{ .Values.global.s3Bucket }}/spark-event-logs/dev"
-    spark.eventLog.rolling.enabled: "true"
-    spark.eventLog.rolling.maxFileSize: "128m"
-
-    # Dev-specific configurations
-    spark.kubernetes.driver.label.environment: "dev"
-    spark.kubernetes.executor.label.environment: "dev"
-    spark.kubernetes.driver.label.blueprint: "spark-on-eks"
-    spark.kubernetes.executor.label.blueprint: "spark-on-eks"
-
-    # Node placement for dev
-    spark.kubernetes.driver.node.selector.node-type: "spark-compute-optimized"
-    spark.kubernetes.executor.node.selector.node-type: "spark-compute-optimized"
-
-    # Tolerations for Spark workloads
-    spark.kubernetes.driver.podTemplateFile: "/opt/spark/conf/driver-pod-template.yaml"
-    spark.kubernetes.executor.podTemplateFile: "/opt/spark/conf/executor-pod-template.yaml"
-
-  # Dev-specific monitoring (less intensive)
-  prometheus:
-    metrics:
-      enable: true
-      port: 8080
-      interval: 60s  # Less frequent metrics collection
-    podMonitor:
-      create: true
-      labels:
-        app.kubernetes.io/name: spark-operator
-        environment: dev
-        blueprint: spark-on-eks
-
-  # Shorter TTL for dev (faster cleanup)
-  sparkApplicationTTLSeconds: 3600  # 1 hour vs 24 hours default
-
-  # Debug logging for dev
-  logLevel: DEBUG
-
-  # Dev-specific labels and annotations
-  commonLabels:
-    managed-by: argocd
-    component: spark-operator
-    environment: dev
-    blueprint: spark-on-eks
-
-  commonAnnotations:
-    dev.data-on-eks.io/spark-version: "3.5.1"
-    dev.data-on-eks.io/debugging: "enabled"
-    dev.data-on-eks.io/auto-cleanup: "1h"
-
-# Dev-specific pod templates
-podTemplates:
-  driver: |
-    apiVersion: v1
-    kind: Pod
-    spec:
-      nodeSelector:
-        node-type: spark-compute-optimized
-      tolerations:
-        - key: "spark.apache.org/node-type"
-          operator: Equal
-          value: "compute-optimized"
-          effect: NoSchedule
-      containers:
-        - name: spark-kubernetes-driver
-          resources:
-            requests:
-              cpu: "1"
-              memory: "1g"
-            limits:
-              cpu: "2"
-              memory: "2g"
-          env:
-            - name: SPARK_LOCAL_DIRS
-              value: "/mnt/spark-local/tmp"
-
-  executor: |
-    apiVersion: v1
-    kind: Pod
-    spec:
-      nodeSelector:
-        node-type: spark-compute-optimized
-      tolerations:
-        - key: "spark.apache.org/node-type"
-          operator: Equal
-          value: "compute-optimized"
-          effect: NoSchedule
-      containers:
-        - name: spark-kubernetes-executor
-          resources:
-            requests:
-              cpu: "1"
-              memory: "2g"
-            limits:
-              cpu: "1"
-              memory: "2g"
-          env:
-            - name: SPARK_LOCAL_DIRS
-              value: "/mnt/spark-local/work"
-
-# Dev-specific service accounts and RBAC
-serviceAccounts:
-  - name: spark-dev
-    namespace: spark-dev
-    labels:
-      blueprint: spark-on-eks
-      environment: dev
-    annotations:
-      eks.amazonaws.com/role-arn: "{{ .Values.global.sparkJobRoleArn }}"
-
-  - name: spark-examples
-    namespace: spark-examples
-    labels:
-      blueprint: spark-on-eks
-      environment: dev
-      purpose: examples
+# Dev logging
+logging:
+  level: INFO

@@ -1,5 +1,5 @@
 # Spark on EKS - Blueprint Composition
-# Selects and configures addons from infra/argocd/ library
+# Deploys Karpenter addon, NodePools/NodeClasses, Spark Operator, History Server, YuniKorn
 
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
@@ -8,65 +8,45 @@ metadata:
   namespace: argocd
   labels:
     blueprint: spark-on-eks
-    category: composition
 spec:
   generators:
     - matrix:
         generators:
-          # Environment matrix
+          # Dev environment only (users can copy to create other environments)
           - list:
               elements:
                 - env: dev
-                  domain: dev.data-on-eks.com
-                  replicas: 1
-                - env: staging
-                  domain: staging.data-on-eks.com
-                  replicas: 2
-                - env: prod
-                  domain: prod.data-on-eks.com
-                  replicas: 3
-
-          # Addon selection for Spark blueprint
+          
+          # ArgoCD addon deployment sequence
           - list:
               elements:
-                # Core Infrastructure Addons (from infra/argocd/core/)
+                # Phase 1: Karpenter Addon (Helm Chart v1.6.0)
                 - addon: karpenter
                   category: core
                   namespace: karpenter
                   syncWave: "1"
-                  required: true
-
-                - addon: aws-load-balancer-controller
+                
+                # Phase 2: Karpenter Resources (NodePools + NodeClasses)
+                - addon: karpenter-resources
                   category: core
-                  namespace: kube-system
+                  namespace: karpenter
                   syncWave: "2"
-                  required: true
-
-                # Data Platform Addons (from infra/argocd/data/)
+                
+                # Phase 3: Data Platform Addons
                 - addon: spark-operator
                   category: data
                   namespace: spark-operator
                   syncWave: "3"
-                  required: true
-
+                
                 - addon: spark-history-server
                   category: data
                   namespace: spark-operator
                   syncWave: "4"
-                  required: true
-
+                
                 - addon: yunikorn
                   category: data
                   namespace: yunikorn
                   syncWave: "3"
-                  required: false
-
-                # Observability Addons (from infra/argocd/observability/)
-                - addon: prometheus-stack
-                  category: observability
-                  namespace: kube-prometheus-stack
-                  syncWave: "5"
-                  required: false
 
   template:
     metadata:
@@ -75,41 +55,29 @@ spec:
       labels:
         blueprint: spark-on-eks
         addon: "{{addon}}"
-        category: "{{category}}"
         environment: "{{env}}"
       annotations:
         argocd.argoproj.io/sync-wave: "{{syncWave}}"
 
     spec:
-      project: data-platform
-
+      project: default
+      
       source:
         repoURL: https://github.com/awslabs/data-on-eks
-        targetRevision: main
-        # Consumes from infra/argocd/ library
+        targetRevision: HEAD
         path: "infra/argocd/{{category}}/{{addon}}"
 
         helm:
           valueFiles:
-            - values.yaml  # Base defaults from infra/argocd/
-            # Blueprint-specific overrides
+            - values.yaml
             - ../../../blueprints/spark-on-eks/values/{{env}}/{{addon}}.yaml
-
-          # Global parameters available to all addons
+          
           parameters:
             - name: global.clusterName
               value: "spark-on-eks-{{env}}"
             - name: global.environment
               value: "{{env}}"
-            - name: global.region
-              value: "us-west-2"
-            - name: global.blueprint
-              value: "spark-on-eks"
-            - name: global.replicas
-              value: "{{replicas}}"
-            - name: global.s3BucketName
-              value: "spark-on-eks-{{env}}-spark-logs"
-
+      
       destination:
         server: https://kubernetes.default.svc
         namespace: "{{namespace}}"
@@ -118,11 +86,8 @@ spec:
         automated:
           prune: true
           selfHeal: true
-          allowEmpty: false
         syncOptions:
           - CreateNamespace=true
-          - ServerSideApply=true
-          - ApplyOutOfSyncOnly=true
         retry:
           limit: 3
           backoff:

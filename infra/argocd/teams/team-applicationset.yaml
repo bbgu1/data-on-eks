@@ -1,0 +1,65 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: teams
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: teams
+    app.kubernetes.io/part-of: data-on-eks
+    app.kubernetes.io/managed-by: argocd
+spec:
+  generators:
+  - clusters:
+      selector:
+        matchLabels:
+          teams-enabled: "true"
+      values:
+        teams: |
+          {{teams}}  # This will be replaced by Terraform with actual team configurations
+  template:
+    metadata:
+      name: 'team-{{name}}'
+      labels:
+        team: '{{name}}'
+    spec:
+      project: default
+      source:
+        repoURL: '{{repoURL}}'
+        targetRevision: HEAD
+        path: infra/argocd/teams
+        helm:
+          valueFiles:
+          - values.yaml
+          values: |
+            team:
+              name: '{{name}}'
+              namespace: '{{namespace}}'
+              serviceAccount: '{{serviceAccount}}'
+              roleArn: '{{roleArn}}'
+              workloadType: '{{workloadType}}'
+              {{- if hasKey . "resourceQuota" }}
+              resourceQuota:
+                {{toYaml .resourceQuota | nindent 16}}
+              {{- end }}
+              {{- if hasKey . "additionalUsers" }}
+              additionalUsers:
+                {{- range .additionalUsers }}
+                - {{.}}
+                {{- end }}
+              {{- end }}
+      destination:
+        server: '{{server}}'
+        namespace: '{{namespace}}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+        - CreateNamespace=true
+        - RespectIgnoreDifferences=true
+        retry:
+          limit: 5
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 3m

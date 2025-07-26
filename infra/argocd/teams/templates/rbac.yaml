@@ -1,0 +1,104 @@
+# Create a single shared ClusterRole for all teams
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Values.global.clusterRoleName }}
+  labels:
+    app.kubernetes.io/name: {{ .Values.global.clusterRoleName }}
+    app.kubernetes.io/part-of: data-on-eks
+    app.kubernetes.io/managed-by: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+rules:
+# Basic cluster-level permissions
+- apiGroups: [""]
+  resources: ["namespaces", "nodes", "persistentvolumes"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["storage.k8s.io"]
+  resources: ["storageclasses"]
+  verbs: ["get", "list", "watch"]
+
+# Namespace-scoped permissions (will be restricted by RoleBinding)
+- apiGroups: [""]
+  resources: 
+    - "serviceaccounts"
+    - "services" 
+    - "configmaps"
+    - "events"
+    - "pods"
+    - "pods/log"
+    - "persistentvolumeclaims"
+    - "secrets"
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+- apiGroups: ["apps"]
+  resources: ["deployments", "statefulsets", "replicasets"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+- apiGroups: ["batch"]
+  resources: ["jobs"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+- apiGroups: ["extensions", "networking.k8s.io"]
+  resources: ["ingresses"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+# Workload-specific permissions (include all common workload types)
+- apiGroups: ["sparkoperator.k8s.io"]
+  resources: ["sparkapplications", "scheduledsparkapplications"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+- apiGroups: ["flink.apache.org"]
+  resources: ["flinkdeployments", "flinksessionjobs"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+- apiGroups: ["argoproj.io"]
+  resources: ["workflows", "workflowtemplates", "cronworkflows"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+{{- range .Values.teams }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ .name }}-role-binding
+  namespace: {{ .namespace }}
+  labels:
+    app.kubernetes.io/name: {{ .name }}-role-binding
+    app.kubernetes.io/part-of: data-on-eks
+    app.kubernetes.io/managed-by: argocd
+    team: {{ .name }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+subjects:
+- kind: ServiceAccount
+  name: {{ .serviceAccount }}
+  namespace: {{ .namespace }}
+roleRef:
+  kind: ClusterRole
+  name: {{ $.Values.global.clusterRoleName }}
+  apiGroup: rbac.authorization.k8s.io
+
+{{- if .additionalUsers }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ .name }}-users-binding
+  namespace: {{ .namespace }}
+  labels:
+    team: {{ .name }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+subjects:
+{{- range .additionalUsers }}
+- kind: User
+  name: {{ . }}
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}
+roleRef:
+  kind: ClusterRole
+  name: {{ $.Values.global.clusterRoleName }}
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}
+{{- end }}

@@ -1,0 +1,13 @@
+# Karpenter Resources - Base Configuration
+# NodePools and NodeClasses that blueprints can override
+
+global:
+  clusterName: ""
+  region: ""
+  environment: "dev"
+
+# Default NodePools (blueprints override with sparkNodePools, flinkNodePools, etc.)
+nodePools: []
+
+# Default EC2NodeClasses (blueprints override with sparkEC2NodeClasses, etc.)
+ec2NodeClasses: []
