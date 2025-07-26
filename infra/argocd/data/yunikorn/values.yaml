@@ -12,7 +12,7 @@ yunikorn:
     image:
       repository: apache/yunikorn
       tag: "admission-1.6.3"
-    
+
     # Resources
     resources:
       requests:
@@ -32,7 +32,7 @@ yunikorn:
       limits:
         cpu: 500m
         memory: 1Gi
-    
+
     # Configuration
     configuration: |
       partitions:

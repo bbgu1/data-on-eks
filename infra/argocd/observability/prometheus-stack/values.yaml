@@ -14,11 +14,11 @@ kube-prometheus-stack:
         limits:
           memory: 1Gi
           cpu: 500m
-      
+
       # Retention settings
       retention: 7d
       retentionSize: 10GB
-      
+
       # Storage configuration
       storageSpec:
         volumeClaimTemplate:
@@ -28,12 +28,12 @@ kube-prometheus-stack:
             resources:
               requests:
                 storage: 20Gi
-      
+
       # Service monitor selectors
       serviceMonitorSelectorNilUsesHelmValues: false
       podMonitorSelectorNilUsesHelmValues: false
       ruleSelectorNilUsesHelmValues: false
-      
+
       # External labels
       externalLabels:
         cluster: ""
@@ -42,13 +42,13 @@ kube-prometheus-stack:
   # Grafana configuration
   grafana:
     enabled: true
-    
+
     # Admin credentials (password will be overridden)
     admin:
       existingSecret: "grafana-admin-secret"
       userKey: username
       passwordKey: password
-    
+
     # Resources
     resources:
       requests:
@@ -57,7 +57,7 @@ kube-prometheus-stack:
       limits:
         memory: 512Mi
         cpu: 200m
-    
+
     # Persistence
     persistence:
       enabled: true
@@ -66,19 +66,19 @@ kube-prometheus-stack:
       accessModes:
         - ReadWriteOnce
       size: 10Gi
-    
+
     # Service configuration
     service:
       type: ClusterIP
       port: 80
-    
+
     # Ingress (disabled by default)
     ingress:
       enabled: false
-    
+
     # Default dashboards
     defaultDashboardsEnabled: true
-    
+
     # Additional dashboards
     dashboards:
       default:
@@ -98,7 +98,7 @@ kube-prometheus-stack:
         limits:
           memory: 256Mi
           cpu: 100m
-      
+
       storage:
         volumeClaimTemplate:
           spec:
@@ -112,14 +112,14 @@ kube-prometheus-stack:
   nodeExporter:
     enabled: true
 
-  # Kube State Metrics  
+  # Kube State Metrics
   kubeStateMetrics:
     enabled: true
 
   # Prometheus Operator
   prometheusOperator:
     enabled: true
-    
+
     # Resources
     resources:
       requests:

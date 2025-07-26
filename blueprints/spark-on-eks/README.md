@@ -75,7 +75,7 @@ cd blueprints/spark-on-eks/terraform
 
 This script will:
 - ✅ Deploy VPC and EKS cluster
-- ✅ Configure Pod Identity for Spark workloads  
+- ✅ Configure Pod Identity for Spark workloads
 - ✅ Set up S3 bucket for Spark event logs
 - ✅ Install ArgoCD for GitOps
 - ✅ Deploy all Spark addons via ArgoCD ApplicationSet
@@ -266,7 +266,7 @@ karpenter-resources/
 ArgoCD automatically replaces placeholder values with actual cluster configuration:
 
 - `PLACEHOLDER_CLUSTER_NAME` → Your EKS cluster name
-- `PLACEHOLDER_KARPENTER_NODE_INSTANCE_PROFILE` → IAM instance profile ARN  
+- `PLACEHOLDER_KARPENTER_NODE_INSTANCE_PROFILE` → IAM instance profile ARN
 - `PLACEHOLDER_ENVIRONMENT` → Environment tag (dev/staging/prod)
 
 ### Monitoring Karpenter via ArgoCD

@@ -5,7 +5,7 @@ karpenter:
   controller:
     # Dev environment - single replica
     replicas: 1
-    
+
     resources:
       requests:
         cpu: 500m
@@ -35,21 +35,21 @@ sparkNodePools:
             - key: "karpenter.sh/capacity-type"
               operator: In
               values: ["spot", "on-demand"]
-          
+
           # Spark-specific startup taints
           startupTaints:
             - key: "spark.apache.org/node-type"
               value: "compute-optimized"
               effect: NoSchedule
-          
+
           # Dev environment - shorter expiry
           expireAfter: 15m
-      
+
       # Dev limits - smaller scale
       limits:
         cpu: 500
         memory: 1000Gi
-      
+
       # Conservative disruption in dev
       disruption:
         consolidationPolicy: WhenEmpty
@@ -71,18 +71,18 @@ sparkNodePools:
             - key: "karpenter.k8s.aws/instance-size"
               operator: In
               values: ["xlarge", "2xlarge", "4xlarge", "8xlarge"]
-          
+
           startupTaints:
             - key: "spark.apache.org/node-type"
-              value: "memory-optimized"  
+              value: "memory-optimized"
               effect: NoSchedule
-          
+
           expireAfter: 30m
-      
+
       limits:
         cpu: 800
         memory: 2000Gi
-      
+
       disruption:
         consolidationPolicy: WhenEmpty
         consolidateAfter: 120s
@@ -93,19 +93,19 @@ sparkEC2NodeClasses:
     spec:
       # Instance store for Spark shuffle
       instanceStorePolicy: RAID0
-      
+
       # Spark-optimized user data
       userData: |
         #!/bin/bash
         /etc/eks/bootstrap.sh {{ .Values.global.clusterName }} \
           --container-runtime containerd \
           --kubelet-extra-args '--node-labels=node-type=spark-compute-optimized,workload-class=compute-intensive'
-        
+
         # Spark optimizations
         echo 'vm.swappiness=1' >> /etc/sysctl.conf
         echo 'net.core.somaxconn=65536' >> /etc/sysctl.conf
         sysctl -p
-        
+
         # Configure instance store for Spark
         if [[ -b /dev/nvme1n1 ]]; then
           mkfs.xfs -f /dev/nvme1n1
@@ -113,7 +113,7 @@ sparkEC2NodeClasses:
           mount /dev/nvme1n1 /mnt/spark-local
           chmod 755 /mnt/spark-local
         fi
-      
+
       tags:
         Blueprint: spark-on-eks
         Environment: dev
@@ -122,7 +122,7 @@ sparkEC2NodeClasses:
   - name: spark-memory-optimized
     spec:
       instanceStorePolicy: RAID0
-      
+
       # Enhanced block device mappings for memory workloads
       blockDeviceMappings:
         - deviceName: /dev/xvda
@@ -133,7 +133,7 @@ sparkEC2NodeClasses:
             throughput: 400
             encrypted: true
             deleteOnTermination: true
-      
+
       # Memory-optimized kubelet settings
       kubelet:
         maxPods: 110
@@ -146,19 +146,19 @@ sparkEC2NodeClasses:
         evictionHard:
           memory.available: 1Gi
           nodefs.available: 10%
-      
+
       userData: |
         #!/bin/bash
         /etc/eks/bootstrap.sh {{ .Values.global.clusterName }} \
           --container-runtime containerd \
           --kubelet-extra-args '--node-labels=node-type=spark-memory-optimized,workload-class=memory-intensive'
-        
+
         # Memory-specific optimizations
         echo 'vm.swappiness=1' >> /etc/sysctl.conf
         echo 'vm.dirty_ratio=80' >> /etc/sysctl.conf
         echo 'vm.overcommit_memory=1' >> /etc/sysctl.conf
         sysctl -p
-        
+
         # Instance store configuration
         if [[ -b /dev/nvme1n1 ]]; then
           mkfs.xfs -f -K -d agcount=32 /dev/nvme1n1
@@ -166,7 +166,7 @@ sparkEC2NodeClasses:
           mount -o noatime,allocsize=16m /dev/nvme1n1 /mnt/spark-local
           chmod 755 /mnt/spark-local
         fi
-      
+
       tags:
         Blueprint: spark-on-eks
         Environment: dev

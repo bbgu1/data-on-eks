@@ -92,18 +92,18 @@ fi
 
 if [ "$FORCE" != "true" ]; then
     step "Safety Confirmation"
-    
+
     # Get cluster info if available
     CLUSTER_NAME=""
     S3_BUCKET=""
     VPC_ID=""
-    
+
     if [ -f "terraform.tfstate" ] || [ -f "terraform.tfstate.backup" ]; then
         CLUSTER_NAME=$(terraform output -raw cluster_name 2>/dev/null || echo "Unknown")
         S3_BUCKET=$(terraform output -raw s3_bucket_name 2>/dev/null || echo "Unknown")
         VPC_ID=$(terraform output -raw vpc_id 2>/dev/null || echo "Unknown")
     fi
-    
+
     echo ""
     warning "⚠️  DANGER: This will destroy ALL resources for Spark on EKS blueprint"
     echo ""
@@ -119,13 +119,13 @@ if [ "$FORCE" != "true" ]; then
     echo ""
     warning "This action CANNOT be undone!"
     echo ""
-    
+
     read -p "Are you absolutely sure you want to proceed? Type 'destroy' to confirm: " confirm
     if [[ "$confirm" != "destroy" ]]; then
         info "Cleanup cancelled - wise choice! 🛡️"
         exit 0
     fi
-    
+
     echo ""
     warning "Final confirmation: Type the cluster name '${CLUSTER_NAME:-UNKNOWN}' to proceed:"
     read -p "> " cluster_confirm
@@ -146,7 +146,7 @@ step "Phase 1: Kubernetes Resources Cleanup"
 KUBECTL_CONFIGURED=false
 if command -v kubectl >/dev/null 2>&1; then
     info "Attempting to configure kubectl..."
-    
+
     # Try to get cluster name from terraform
     if [ -f "terraform.tfstate" ] || [ -f "terraform.tfstate.backup" ]; then
         CLUSTER_NAME=$(terraform output -raw cluster_name 2>/dev/null || echo "")
@@ -171,7 +171,7 @@ if [ "$KUBECTL_CONFIGURED" = true ]; then
     else
         info "No ArgoCD applications found"
     fi
-    
+
     # Step 2: Remove Workloads (Spark jobs, etc.)
     info "🗑️  Step 2: Removing Spark workloads..."
     for ns in spark-operator spark-team-a spark-team-b spark-examples default; do
@@ -182,7 +182,7 @@ if [ "$KUBECTL_CONFIGURED" = true ]; then
         fi
     done
     success "Spark workloads removed"
-    
+
     # Step 3: Remove Karpenter NodePools (to prevent new nodes)
     info "🗑️  Step 3: Removing Karpenter NodePools..."
     if kubectl get nodepools -n karpenter >/dev/null 2>&1; then
@@ -192,16 +192,16 @@ if [ "$KUBECTL_CONFIGURED" = true ]; then
     else
         info "No Karpenter NodePools found"
     fi
-    
+
     # Step 4: Wait for nodes to drain
     info "🗑️  Step 4: Waiting for nodes to drain..."
     sleep 30  # Give Karpenter time to process
-    
+
     # Step 5: Remove LoadBalancers and Services (to prevent dangling resources)
     info "🗑️  Step 5: Removing LoadBalancers and Services..."
     kubectl delete services --all-namespaces --field-selector spec.type=LoadBalancer --ignore-not-found=true --timeout=300s || warning "Some LoadBalancers may not have deleted"
     success "LoadBalancers and Services removed"
-    
+
     info "Kubernetes cleanup completed ✓"
 else
     warning "Skipping Kubernetes cleanup (kubectl not configured)"
@@ -226,7 +226,7 @@ if [ -n "$CLUSTER_NAME" ]; then
             aws elbv2 delete-load-balancer --load-balancer-arn $arn --region $REGION 2>/dev/null || warning "Failed to delete $arn"
         done
     fi
-    
+
     # Check for CLBs
     CLB_NAMES=$(aws elb describe-load-balancers --region $REGION --query "LoadBalancerDescriptions[?contains(LoadBalancerName, '$CLUSTER_NAME')].LoadBalancerName" --output text 2>/dev/null || echo "")
     if [ -n "$CLB_NAMES" ]; then

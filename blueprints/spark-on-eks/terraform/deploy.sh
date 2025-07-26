@@ -50,7 +50,7 @@ fi
 
 # Check required tools
 command -v terraform >/dev/null 2>&1 || error "Terraform not installed"
-command -v kubectl >/dev/null 2>&1 || error "kubectl not installed"  
+command -v kubectl >/dev/null 2>&1 || error "kubectl not installed"
 command -v aws >/dev/null 2>&1 || error "AWS CLI not installed"
 
 # Check AWS credentials
@@ -114,7 +114,7 @@ secondary_cidrs = ["100.64.0.0/16"]
 # Tags
 tags = {
   Blueprint   = "spark-on-eks"
-  Environment = "$ENVIRONMENT" 
+  Environment = "$ENVIRONMENT"
   ManagedBy   = "terraform"
   Owner       = "$(aws sts get-caller-identity --query 'Arn' --output text | cut -d'/' -f2)"
   CreatedBy   = "deploy-script"
@@ -147,7 +147,7 @@ fi
 # Wait a moment for VPC propagation
 sleep 10
 
-# Phase 2: EKS Cluster  
+# Phase 2: EKS Cluster
 info "🏗️  Phase 2: Deploying EKS cluster..."
 if terraform apply -target="module.eks" -var-file=terraform.tfvars -auto-approve; then
     success "EKS cluster deployed successfully"
@@ -164,7 +164,7 @@ else
 fi
 
 # Phase 4: S3 and Storage
-info "🏗️  Phase 4: Deploying S3 bucket and storage..."  
+info "🏗️  Phase 4: Deploying S3 bucket and storage..."
 if terraform apply -target="aws_s3_bucket.spark" -target="aws_s3_bucket_public_access_block.spark" -target="aws_s3_bucket_server_side_encryption_configuration.spark" -var-file=terraform.tfvars -auto-approve; then
     success "S3 storage deployed successfully"
 else
@@ -239,13 +239,13 @@ ELAPSED=0
 while [ $ELAPSED -lt $TIMEOUT ]; do
     # Check if applications exist
     APP_COUNT=$(kubectl get applications -n argocd --no-headers 2>/dev/null | wc -l || echo "0")
-    
+
     if [ "$APP_COUNT" -gt 0 ]; then
         info "Found $APP_COUNT ArgoCD applications"
-        
+
         # Check application health
         HEALTHY_COUNT=$(kubectl get applications -n argocd -o jsonpath='{.items[?(@.status.health.status=="Healthy")].metadata.name}' 2>/dev/null | wc -w || echo "0")
-        
+
         if [ "$HEALTHY_COUNT" -eq "$APP_COUNT" ] && [ "$APP_COUNT" -gt 0 ]; then
             success "All ArgoCD applications are healthy!"
             break
@@ -255,7 +255,7 @@ while [ $ELAPSED -lt $TIMEOUT ]; do
     else
         info "Waiting for ArgoCD applications to appear..."
     fi
-    
+
     sleep 30
     ELAPSED=$((ELAPSED + 30))
 done
@@ -284,7 +284,7 @@ else
     warning "Karpenter not found (may still be deploying)"
 fi
 
-# Check Spark Operator  
+# Check Spark Operator
 info "Checking Spark Operator..."
 if kubectl get deployment spark-operator -n spark-operator >/dev/null 2>&1; then
     SPARK_STATUS=$(kubectl get deployment spark-operator -n spark-operator -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")

@@ -25,7 +25,7 @@ spec:
                 - env: prod
                   domain: prod.data-on-eks.com
                   replicas: 3
-          
+
           # Addon selection for Spark blueprint
           - list:
               elements:
@@ -35,32 +35,32 @@ spec:
                   namespace: karpenter
                   syncWave: "1"
                   required: true
-                
+
                 - addon: aws-load-balancer-controller
                   category: core
                   namespace: kube-system
                   syncWave: "2"
                   required: true
-                
+
                 # Data Platform Addons (from infra/argocd/data/)
                 - addon: spark-operator
                   category: data
                   namespace: spark-operator
                   syncWave: "3"
                   required: true
-                
+
                 - addon: spark-history-server
                   category: data
                   namespace: spark-operator
                   syncWave: "4"
                   required: true
-                
+
                 - addon: yunikorn
                   category: data
                   namespace: yunikorn
                   syncWave: "3"
                   required: false
-                
+
                 # Observability Addons (from infra/argocd/observability/)
                 - addon: prometheus-stack
                   category: observability
@@ -79,22 +79,22 @@ spec:
         environment: "{{env}}"
       annotations:
         argocd.argoproj.io/sync-wave: "{{syncWave}}"
-    
+
     spec:
       project: data-platform
-      
+
       source:
         repoURL: https://github.com/awslabs/data-on-eks
         targetRevision: main
         # Consumes from infra/argocd/ library
         path: "infra/argocd/{{category}}/{{addon}}"
-        
+
         helm:
           valueFiles:
             - values.yaml  # Base defaults from infra/argocd/
             # Blueprint-specific overrides
             - ../../../blueprints/spark-on-eks/values/{{env}}/{{addon}}.yaml
-          
+
           # Global parameters available to all addons
           parameters:
             - name: global.clusterName
@@ -109,11 +109,11 @@ spec:
               value: "{{replicas}}"
             - name: global.s3BucketName
               value: "spark-on-eks-{{env}}-spark-logs"
-      
+
       destination:
         server: https://kubernetes.default.svc
         namespace: "{{namespace}}"
-      
+
       syncPolicy:
         automated:
           prune: true

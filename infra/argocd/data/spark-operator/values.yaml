@@ -13,7 +13,7 @@ spark-operator:
   controller:
     replicas: 2
     workers: 10
-    
+
     resources:
       requests:
         cpu: 200m
@@ -21,19 +21,19 @@ spark-operator:
       limits:
         cpu: 1000m
         memory: 1Gi
-    
+
     securityContext:
       runAsNonRoot: true
       runAsUser: 1000
       runAsGroup: 1000
       fsGroup: 1000
-  
+
   # Webhook configuration
   webhook:
     enabled: true
     replicas: 2
     port: 8443
-    
+
     resources:
       requests:
         cpu: 100m
@@ -41,19 +41,19 @@ spark-operator:
       limits:
         cpu: 500m
         memory: 512Mi
-  
+
   # Spark job namespaces (blueprints can override)
   spark:
     jobNamespaces: "{{ .Values.global.sparkNamespaces }}"
-    
+
     serviceAccount:
       create: false
       name: spark-operator
-    
+
     rbac:
       create: true
       createClusterRole: true
-  
+
   # Observability
   prometheus:
     metrics:
@@ -63,25 +63,25 @@ spark-operator:
       create: true
       labels:
         app.kubernetes.io/name: spark-operator
-  
+
   # Image configuration
   image:
     repository: ghcr.io/googlecloudplatform/spark-operator
     tag: "v2.2.0-v1.9.0-3.5.1"
     pullPolicy: IfNotPresent
-  
+
   # Pod disruption budget
   podDisruptionBudget:
     enabled: true
     minAvailable: 1
-  
+
   # Common labels
   commonLabels:
     managed-by: argocd
     component: spark-operator
-  
+
   # Application TTL
   sparkApplicationTTLSeconds: 86400
-  
+
   # Logging
   logLevel: INFO

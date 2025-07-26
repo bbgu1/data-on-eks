@@ -6,7 +6,7 @@ spark-operator:
     # Dev environment - single replica
     replicas: 1
     workers: 5  # Reduced for dev
-    
+
     resources:
       requests:
         cpu: 100m
@@ -14,11 +14,11 @@ spark-operator:
       limits:
         cpu: 500m
         memory: 512Mi
-  
+
   webhook:
     # Dev environment - single webhook
     replicas: 1
-    
+
     resources:
       requests:
         cpu: 50m
@@ -26,14 +26,14 @@ spark-operator:
       limits:
         cpu: 200m
         memory: 256Mi
-  
+
   # Spark-specific configuration for dev
   spark:
     jobNamespaces:
       - default
       - spark-dev
       - spark-examples
-    
+
     # Dev-specific RBAC (more permissive)
     rbac:
       create: true
@@ -43,30 +43,30 @@ spark-operator:
         - apiGroups: [""]
           resources: ["persistentvolumes", "persistentvolumeclaims"]
           verbs: ["get", "list", "watch"]
-  
+
   # Dev-specific Spark defaults
   sparkDefaults:
     spark.sql.adaptive.enabled: "true"
     spark.sql.adaptive.coalescePartitions.enabled: "true"
     spark.kubernetes.allocation.batch.size: "10"  # Smaller batches for dev
     spark.kubernetes.allocation.batch.delay: "5s"
-    
+
     # Dev-specific resource defaults
     spark.executor.instances: "2"
     spark.executor.cores: "1"
     spark.executor.memory: "2g"
     spark.driver.cores: "1"
     spark.driver.memory: "1g"
-    
+
     # Shuffle and storage for dev
     spark.sql.shuffle.partitions: "200"
     spark.kubernetes.executor.deleteOnTermination: "true"
-    
+
     # Dev debugging
     spark.ui.enabled: "true"
     spark.eventLog.enabled: "true"
     spark.eventLog.dir: "s3a://{{ .Values.global.s3Bucket }}/spark-event-logs/dev"
-  
+
   # Observability - reduced for dev
   prometheus:
     metrics:
@@ -79,20 +79,20 @@ spark-operator:
       labels:
         app.kubernetes.io/name: spark-operator
         environment: dev
-  
+
   # Dev-specific application TTL (shorter cleanup)
   sparkApplicationTTLSeconds: 3600  # 1 hour vs 24 hours default
-  
+
   # Development logging
   logLevel: DEBUG  # More verbose for dev
-  
+
   # Dev-specific labels
   commonLabels:
     managed-by: argocd
     component: spark-operator
     environment: dev
     blueprint: spark-on-eks
-  
+
   # Dev-specific annotations
   commonAnnotations:
     dev.data-on-eks.io/spark-version: "3.5.1"
@@ -105,7 +105,7 @@ sparkApplicationTemplates:
       type: Python
       mode: cluster
       image: "gcr.io/spark-operator/spark-py:v3.5.1"
-      
+
       # Dev-specific resource allocation
       driver:
         cores: 1
@@ -121,7 +121,7 @@ sparkApplicationTemplates:
             operator: Equal
             value: "compute-optimized"
             effect: NoSchedule
-      
+
       executor:
         instances: 2
         cores: 1
@@ -136,7 +136,7 @@ sparkApplicationTemplates:
             operator: Equal
             value: "compute-optimized"
             effect: NoSchedule
-      
+
       # Dev-specific monitoring
       monitoring:
         enabled: true
@@ -153,7 +153,7 @@ devNamespaces:
       blueprint: "spark-on-eks"
     annotations:
       scheduler.alpha.kubernetes.io/preferred-node: "spark-compute-optimized"
-  
+
   - name: spark-examples
     labels:
       spark-operator/enabled: "true"

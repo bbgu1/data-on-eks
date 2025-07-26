@@ -1,4 +1,4 @@
-# Flink on EKS - Blueprint Composition  
+# Flink on EKS - Blueprint Composition
 # Uses SAME base addons as Spark, but with different configurations
 
 apiVersion: argoproj.io/v1alpha1
@@ -22,7 +22,7 @@ spec:
                 - env: prod
                   domain: prod.data-on-eks.com
                   replicas: 3
-          
+
           # Flink-specific addon selection
           - list:
               elements:
@@ -32,20 +32,20 @@ spec:
                   namespace: karpenter
                   syncWave: "1"
                   required: true
-                
+
                 - addon: aws-load-balancer-controller
                   category: core
                   namespace: kube-system
                   syncWave: "2"
                   required: true
-                
+
                 # Different Data Platform Addon
                 - addon: flink-operator
                   category: data
                   namespace: flink-operator
                   syncWave: "3"
                   required: true
-                
+
                 # SAME Observability (different config)
                 - addon: prometheus-stack
                   category: observability
@@ -64,22 +64,22 @@ spec:
         environment: "{{env}}"
       annotations:
         argocd.argoproj.io/sync-wave: "{{syncWave}}"
-    
+
     spec:
       project: data-platform
-      
+
       source:
         repoURL: https://github.com/awslabs/data-on-eks
         targetRevision: main
         # SAME infra/argocd/ library as Spark!
         path: "infra/argocd/{{category}}/{{addon}}"
-        
+
         helm:
           valueFiles:
             - values.yaml  # SAME base defaults
             # Flink-specific overrides (different from Spark)
             - ../../../blueprints/flink-on-eks/values/{{env}}/{{addon}}.yaml
-          
+
           # Different global parameters for Flink
           parameters:
             - name: global.clusterName
@@ -92,11 +92,11 @@ spec:
               value: "flink-on-eks"
             - name: global.replicas
               value: "{{replicas}}"
-      
+
       destination:
         server: https://kubernetes.default.svc
         namespace: "{{namespace}}"
-      
+
       syncPolicy:
         automated:
           prune: true

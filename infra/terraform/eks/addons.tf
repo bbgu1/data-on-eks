@@ -41,11 +41,11 @@ resource "kubernetes_storage_class" "ebs_csi_encrypted_gp3_storage_class" {
 # ArgoCD Installation via Terraform
 #---------------------------------------------------------------
 resource "helm_release" "argocd" {
-  name       = "argocd"
-  repository = "https://argoproj.github.io/argo-helm"
-  chart      = "argo-cd"
-  version    = "8.1.1"
-  namespace  = "argocd"
+  name             = "argocd"
+  repository       = "https://argoproj.github.io/argo-helm"
+  chart            = "argo-cd"
+  version          = "8.1.1"
+  namespace        = "argocd"
   create_namespace = true
 
   values = [
@@ -54,13 +54,13 @@ resource "helm_release" "argocd" {
       cm:
         kustomize.buildOptions: --enable-helm
         application.resourceTrackingMethod: annotation
-      
+
     dex:
       enabled: false
-    
+
     notifications:
       enabled: false
-    
+
     EOT
   ]
 

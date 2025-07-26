@@ -54,9 +54,32 @@ output "karpenter_pod_identity_role_arn" {
   value       = aws_iam_role.karpenter_pod_identity_role.arn
 }
 
-output "karpenter_node_instance_profile" {
-  description = "Karpenter node instance profile name"
-  value       = try(aws_iam_instance_profile.karpenter_node_instance_profile.name, null)
+# output "karpenter_node_instance_profile" {
+#   description = "Karpenter node instance profile name"
+#   value       = try(aws_iam_instance_profile.karpenter_node_instance_profile.name, null)
+# }
+
+output "karpenter_node_iam_role_arn" {
+  description = "Karpenter node IAM role ARN for access entries"
+  value = try(
+    values(module.eks.eks_managed_node_groups)[0].iam_role_arn,
+    module.eks.eks_managed_node_groups_defaults.iam_role_arn
+  )
+}
+
+output "ebs_csi_pod_identity_role_arn" {
+  description = "EBS CSI Driver Pod Identity role ARN"
+  value       = aws_iam_role.ebs_csi_pod_identity_role.arn
+}
+
+output "s3_csi_pod_identity_role_arn" {
+  description = "S3 CSI Driver Pod Identity role ARN"
+  value       = var.enable_mountpoint_s3_csi ? aws_iam_role.s3_csi_pod_identity_role[0].arn : null
+}
+
+output "cluster_primary_security_group_id" {
+  description = "Cluster security group that was created by Amazon EKS for the cluster"
+  value       = module.eks.cluster_primary_security_group_id
 }
 
 # Spark Operator Pod Identity role moved to blueprint-specific module

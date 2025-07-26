@@ -10,7 +10,7 @@ yunikorn:
       limits:
         cpu: 1000m
         memory: 2Gi
-    
+
     # Spark-optimized configuration
     configuration: |
       partitions:
@@ -75,7 +75,7 @@ yunikorn:
     service:
       type: ClusterIP
       port: 9889
-    
+
     # Ingress for access
     ingress:
       enabled: true

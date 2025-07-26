@@ -1,6 +1,3 @@
-#---------------------------------------------------------------
-# Pod Identity Roles - Modern IRSA Replacement
-#---------------------------------------------------------------
 
 # Karpenter Pod Identity Role
 resource "aws_iam_role" "karpenter_pod_identity_role" {
@@ -22,7 +19,6 @@ resource "aws_iam_role" "karpenter_pod_identity_role" {
     ]
   })
 
-  managed_policy_arns = [aws_iam_policy.karpenter_policy.arn]
   tags = var.tags
 }
 
@@ -36,22 +32,18 @@ resource "aws_eks_pod_identity_association" "karpenter" {
   tags = var.tags
 }
 
-# Karpenter Node Instance Profile for v1.6
-resource "aws_iam_instance_profile" "karpenter_node_instance_profile" {
-  name = "KarpenterNodeInstanceProfile-${var.name}"
-  role = try(
-    values(module.eks.eks_managed_node_groups)[0].iam_role_name,
-    module.eks.eks_managed_node_groups_defaults.iam_role_name
-  )
-  
-  tags = var.tags
+
+# Attach Karpenter policy to the role
+resource "aws_iam_role_policy_attachment" "karpenter_pod_identity_policy" {
+  policy_arn = aws_iam_policy.karpenter_policy.arn
+  role       = aws_iam_role.karpenter_pod_identity_role.name
 }
 
 # Karpenter IAM Policy - Least Privilege
 resource "aws_iam_policy" "karpenter_policy" {
   name_prefix = "${var.name}-karpenter"
   description = "Karpenter policy for ${var.name}"
-  
+
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -107,9 +99,9 @@ resource "aws_iam_policy" "karpenter_policy" {
         Resource = module.eks.cluster_arn
       },
       {
-        Sid    = "AllowPassNodeInstanceRole"
-        Effect = "Allow"
-        Action = "iam:PassRole"
+        Sid      = "AllowPassNodeInstanceRole"
+        Effect   = "Allow"
+        Action   = "iam:PassRole"
         Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/eksctl-*"
         Condition = {
           StringEquals = {
@@ -132,9 +124,9 @@ resource "aws_iam_policy" "karpenter_policy" {
         }
       },
       {
-        Sid    = "AllowCreateTags"
-        Effect = "Allow"
-        Action = "ec2:CreateTags"
+        Sid      = "AllowCreateTags"
+        Effect   = "Allow"
+        Action   = "ec2:CreateTags"
         Resource = "*"
         Condition = {
           StringEquals = {
@@ -167,76 +159,6 @@ resource "aws_iam_policy" "karpenter_policy" {
       }
     ]
   })
-
-  tags = var.tags
-}
-
-# EBS CSI Driver Pod Identity Role
-resource "aws_iam_role" "ebs_csi_pod_identity_role" {
-  name = "${var.name}-ebs-csi-pod-identity-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Principal = {
-          Service = "pods.eks.amazonaws.com"
-        }
-        Action = [
-          "sts:AssumeRole",
-          "sts:TagSession"
-        ]
-      }
-    ]
-  })
-
-  managed_policy_arns = ["arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"]
-  tags = var.tags
-}
-
-# Pod Identity Association for EBS CSI Driver
-resource "aws_eks_pod_identity_association" "ebs_csi" {
-  cluster_name    = module.eks.cluster_name
-  namespace       = "kube-system"
-  service_account = "ebs-csi-controller-sa"
-  role_arn        = aws_iam_role.ebs_csi_pod_identity_role.arn
-
-  tags = var.tags
-}
-
-# S3 CSI Driver Pod Identity Role
-resource "aws_iam_role" "s3_csi_pod_identity_role" {
-  count = var.enable_mountpoint_s3_csi ? 1 : 0
-  name  = "${var.name}-s3-csi-pod-identity-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Principal = {
-          Service = "pods.eks.amazonaws.com"
-        }
-        Action = [
-          "sts:AssumeRole",
-          "sts:TagSession"
-        ]
-      }
-    ]
-  })
-
-  managed_policy_arns = [aws_iam_policy.s3_csi_access_policy[0].arn]
-  tags = var.tags
-}
-
-# Pod Identity Association for S3 CSI Driver
-resource "aws_eks_pod_identity_association" "s3_csi" {
-  count           = var.enable_mountpoint_s3_csi ? 1 : 0
-  cluster_name    = module.eks.cluster_name
-  namespace       = "kube-system"
-  service_account = "s3-csi-driver-sa"
-  role_arn        = aws_iam_role.s3_csi_pod_identity_role[0].arn
 
   tags = var.tags
 }

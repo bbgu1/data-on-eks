@@ -23,8 +23,8 @@ locals {
 
   # Extended configurations used for specific addons with custom settings
   addon_overrides = {
-    coredns                = {}
-    kube-proxy             = {}
+    coredns    = {}
+    kube-proxy = {}
     vpc-cni = {
       before_compute = true
       preserve       = true
@@ -44,7 +44,7 @@ locals {
 
     aws-ebs-csi-driver = {
       # Pod Identity used instead of service_account_role_arn
-      most_recent              = true
+      most_recent = true
     }
 
     amazon-cloudwatch-observability = {

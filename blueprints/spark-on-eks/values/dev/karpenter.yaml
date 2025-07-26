@@ -5,7 +5,7 @@
 karpenter:
   controller:
     replicas: 1  # Single replica for dev
-    
+
     resources:
       requests:
         cpu: 200m
@@ -32,7 +32,7 @@ sparkNodePools:
             apiVersion: karpenter.k8s.aws/v1
             kind: EC2NodeClass
             name: spark-compute-optimized
-          
+
           requirements:
             - key: "karpenter.sh/capacity-type"
               operator: In
@@ -55,19 +55,19 @@ sparkNodePools:
             - key: "karpenter.k8s.aws/instance-generation"
               operator: Gt
               values: ["2"]
-          
+
           # Spark-specific startup taints
           startupTaints:
             - key: "spark.apache.org/node-type"
               value: "compute-optimized"
               effect: NoSchedule
-          
+
           expireAfter: 30m
           terminationGracePeriod: 60s
-      
+
       limits:
         cpu: 1000
-      
+
       disruption:
         consolidationPolicy: WhenEmptyOrUnderutilized
         consolidateAfter: 1m
@@ -89,7 +89,7 @@ sparkNodePools:
             apiVersion: karpenter.k8s.aws/v1
             kind: EC2NodeClass
             name: spark-graviton-memory-optimized
-          
+
           requirements:
             - key: "karpenter.sh/capacity-type"
               operator: In
@@ -112,18 +112,18 @@ sparkNodePools:
             - key: "karpenter.k8s.aws/instance-generation"
               operator: Gt
               values: ["2"]
-          
+
           startupTaints:
             - key: "spark.apache.org/node-type"
               value: "graviton-memory-optimized"
               effect: NoSchedule
-          
+
           expireAfter: 30m
           terminationGracePeriod: 120s
-      
+
       limits:
         cpu: 1000
-      
+
       disruption:
         consolidationPolicy: WhenEmptyOrUnderutilized
         consolidateAfter: 1m
@@ -144,7 +144,7 @@ sparkNodePools:
             apiVersion: karpenter.k8s.aws/v1
             kind: EC2NodeClass
             name: spark-memory-optimized
-          
+
           requirements:
             - key: "karpenter.sh/capacity-type"
               operator: In
@@ -167,18 +167,18 @@ sparkNodePools:
             - key: "karpenter.k8s.aws/instance-generation"
               operator: Gt
               values: ["2"]
-          
+
           startupTaints:
             - key: "spark.apache.org/node-type"
               value: "memory-optimized"
               effect: NoSchedule
-          
+
           expireAfter: 30m
           terminationGracePeriod: 120s
-      
+
       limits:
         cpu: 1000
-      
+
       disruption:
         consolidationPolicy: WhenEmptyOrUnderutilized
         consolidateAfter: 1m
@@ -199,7 +199,7 @@ sparkNodePools:
             apiVersion: karpenter.k8s.aws/v1
             kind: EC2NodeClass
             name: spark-vertical-ebs-scale
-          
+
           requirements:
             - key: "karpenter.sh/capacity-type"
               operator: In
@@ -213,13 +213,13 @@ sparkNodePools:
             - key: "karpenter.k8s.aws/instance-generation"
               operator: Gt
               values: ["2"]
-          
+
           expireAfter: 30m
           terminationGracePeriod: 120s
-      
+
       limits:
         cpu: 1000
-      
+
       disruption:
         consolidationPolicy: WhenEmptyOrUnderutilized
         consolidateAfter: 1m
@@ -240,7 +240,7 @@ sparkNodePools:
             apiVersion: karpenter.k8s.aws/v1
             kind: EC2NodeClass
             name: spark-operator-benchmark
-          
+
           requirements:
             - key: "karpenter.sh/capacity-type"
               operator: In
@@ -260,13 +260,13 @@ sparkNodePools:
             - key: "karpenter.k8s.aws/instance-generation"
               operator: Gt
               values: ["2"]
-          
+
           expireAfter: 30m
           terminationGracePeriod: 120s
-      
+
       limits:
         cpu: 1000
-      
+
       disruption:
         consolidationPolicy: WhenEmptyOrUnderutilized
         consolidateAfter: 1m
@@ -288,7 +288,7 @@ sparkNodePools:
             apiVersion: karpenter.k8s.aws/v1
             kind: EC2NodeClass
             name: spark-compute-ondemand
-          
+
           requirements:
             - key: "karpenter.sh/capacity-type"
               operator: In
@@ -296,13 +296,13 @@ sparkNodePools:
             - key: "kubernetes.io/arch"
               operator: In
               values: ["amd64"]
-          
+
           expireAfter: 60m
           terminationGracePeriod: 120s
-      
+
       limits:
         cpu: 2000
-      
+
       disruption:
         consolidationPolicy: WhenEmptyOrUnderutilized
         consolidateAfter: 1m
@@ -324,7 +324,7 @@ sparkNodePools:
             apiVersion: karpenter.k8s.aws/v1
             kind: EC2NodeClass
             name: spark-compute-spot-cmr
-          
+
           requirements:
             - key: "karpenter.sh/capacity-type"
               operator: In
@@ -335,13 +335,13 @@ sparkNodePools:
             - key: "karpenter.k8s.aws/instance-category"
               operator: In
               values: ["c", "m", "r"]
-          
+
           expireAfter: 30m
           terminationGracePeriod: 60s
-      
+
       limits:
         cpu: 2000
-      
+
       disruption:
         consolidationPolicy: WhenEmptyOrUnderutilized
         consolidateAfter: 1m
@@ -363,7 +363,7 @@ sparkNodePools:
             apiVersion: karpenter.k8s.aws/v1
             kind: EC2NodeClass
             name: spark-compute-spot-r
-          
+
           requirements:
             - key: "karpenter.sh/capacity-type"
               operator: In
@@ -377,13 +377,13 @@ sparkNodePools:
             - key: "karpenter.k8s.aws/instance-family"
               operator: In
               values: ["r5", "r5n", "r6i", "r6in", "r7i"]
-          
+
           expireAfter: 30m
           terminationGracePeriod: 60s
-      
+
       limits:
         cpu: 2000
-      
+
       disruption:
         consolidationPolicy: WhenEmptyOrUnderutilized
         consolidateAfter: 1m
@@ -405,7 +405,7 @@ sparkNodePools:
             apiVersion: karpenter.k8s.aws/v1
             kind: EC2NodeClass
             name: spark-compute-graviton-od-memory
-          
+
           requirements:
             - key: "karpenter.sh/capacity-type"
               operator: In
@@ -425,13 +425,13 @@ sparkNodePools:
             - key: "karpenter.k8s.aws/instance-generation"
               operator: Gt
               values: ["2"]
-          
+
           expireAfter: 60m
           terminationGracePeriod: 120s
-      
+
       limits:
         cpu: 2000
-      
+
       disruption:
         consolidationPolicy: WhenEmptyOrUnderutilized
         consolidateAfter: 1m
@@ -453,7 +453,7 @@ sparkNodePools:
             apiVersion: karpenter.k8s.aws/v1
             kind: EC2NodeClass
             name: spark-compute-graviton
-          
+
           requirements:
             - key: "karpenter.sh/capacity-type"
               operator: In
@@ -476,13 +476,13 @@ sparkNodePools:
             - key: "karpenter.k8s.aws/instance-generation"
               operator: Gt
               values: ["2"]
-          
+
           expireAfter: 30m
           terminationGracePeriod: 120s
-      
+
       limits:
         cpu: 2000
-      
+
       disruption:
         consolidationPolicy: WhenEmptyOrUnderutilized
         consolidateAfter: 1m
@@ -504,7 +504,7 @@ sparkNodePools:
             apiVersion: karpenter.k8s.aws/v1
             kind: EC2NodeClass
             name: spark-compute-nitro-nvme
-          
+
           requirements:
             - key: "karpenter.sh/capacity-type"
               operator: In
@@ -527,13 +527,13 @@ sparkNodePools:
             - key: "karpenter.k8s.aws/instance-generation"
               operator: Gt
               values: ["2"]
-          
+
           expireAfter: 30m
           terminationGracePeriod: 120s
-      
+
       limits:
         cpu: 1000
-      
+
       disruption:
         consolidationPolicy: WhenEmptyOrUnderutilized
         consolidateAfter: 1m
@@ -550,7 +550,7 @@ sparkEC2NodeClasses:
     spec:
       amiFamily: AL2023
       instanceStorePolicy: RAID0
-      
+
       tags:
         Blueprint: spark-on-eks
         Environment: dev
@@ -566,7 +566,7 @@ sparkEC2NodeClasses:
     spec:
       amiFamily: AL2023
       instanceStorePolicy: RAID0
-      
+
       blockDeviceMappings:
         - deviceName: /dev/xvda
           ebs:
@@ -574,7 +574,7 @@ sparkEC2NodeClasses:
             volumeType: gp3
             encrypted: true
             deleteOnTermination: true
-      
+
       tags:
         Blueprint: spark-on-eks
         Environment: dev
@@ -590,7 +590,7 @@ sparkEC2NodeClasses:
     spec:
       amiFamily: AL2023
       instanceStorePolicy: RAID0
-      
+
       tags:
         Blueprint: spark-on-eks
         Environment: dev
@@ -605,7 +605,7 @@ sparkEC2NodeClasses:
         environment: dev
     spec:
       amiFamily: AL2023
-      
+
       userData: |
         MIME-Version: 1.0
         Content-Type: multipart/mixed; boundary="//"
@@ -695,7 +695,7 @@ sparkEC2NodeClasses:
         fi
 
         --//--
-      
+
       tags:
         Blueprint: spark-on-eks
         Environment: dev
@@ -710,7 +710,7 @@ sparkEC2NodeClasses:
         environment: dev
     spec:
       amiFamily: AL2023
-      
+
       tags:
         Blueprint: spark-on-eks
         Environment: dev
@@ -726,7 +726,7 @@ sparkEC2NodeClasses:
     spec:
       amiFamily: AL2023
       instanceStorePolicy: RAID0
-      
+
       tags:
         Blueprint: spark-on-eks
         Environment: dev
@@ -742,7 +742,7 @@ sparkEC2NodeClasses:
     spec:
       amiFamily: AL2023
       instanceStorePolicy: RAID0
-      
+
       tags:
         Blueprint: spark-on-eks
         Environment: dev
@@ -758,7 +758,7 @@ sparkEC2NodeClasses:
     spec:
       amiFamily: AL2023
       instanceStorePolicy: RAID0
-      
+
       tags:
         Blueprint: spark-on-eks
         Environment: dev
@@ -774,7 +774,7 @@ sparkEC2NodeClasses:
     spec:
       amiFamily: AL2023
       instanceStorePolicy: RAID0
-      
+
       tags:
         Blueprint: spark-on-eks
         Environment: dev
@@ -790,7 +790,7 @@ sparkEC2NodeClasses:
     spec:
       amiFamily: AL2023
       instanceStorePolicy: RAID0
-      
+
       tags:
         Blueprint: spark-on-eks
         Environment: dev
@@ -806,7 +806,7 @@ sparkEC2NodeClasses:
     spec:
       amiFamily: AL2023
       instanceStorePolicy: RAID0
-      
+
       tags:
         Blueprint: spark-on-eks
         Environment: dev

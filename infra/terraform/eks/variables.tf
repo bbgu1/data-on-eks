@@ -1,12 +1,22 @@
 variable "name" {
   description = "Name to be used on all the resources as identifier"
   type        = string
+
+  validation {
+    condition     = length(var.name) > 0 && length(var.name) <= 63
+    error_message = "Name must be between 1 and 63 characters."
+  }
 }
 
 variable "eks_cluster_version" {
   description = "Kubernetes `<major>.<minor>` version to use for the EKS cluster (i.e.: `1.31`)"
   type        = string
   default     = "1.33"
+
+  validation {
+    condition     = can(regex("^[0-9]+\\.[0-9]+$", var.eks_cluster_version))
+    error_message = "EKS cluster version must be in format 'major.minor' (e.g., '1.31')."
+  }
 }
 
 variable "cluster_endpoint_public_access" {
@@ -69,4 +79,10 @@ variable "managed_node_groups" {
   description = "Map of EKS managed node group definitions to create"
   type        = any
   default     = {}
+}
+
+variable "enable_mountpoint_s3_csi" {
+  description = "Enable Mountpoint S3 CSI driver"
+  type        = bool
+  default     = false
 }
