@@ -76,9 +76,13 @@ spec:
           
           parameters:
             - name: global.clusterName
-              value: "spark-on-eks-{{env}}"
+              value: "CLUSTER_NAME_PLACEHOLDER"
             - name: global.environment
               value: "{{env}}"
+            - name: global.region
+              value: "REGION_PLACEHOLDER"
+            - name: global.s3BucketName
+              value: "S3_BUCKET_PLACEHOLDER"
       
       destination:
         server: https://kubernetes.default.svc

@@ -1,4 +1,4 @@
-# Spark History Server - Base Configuration
+# Spark History Server - Base Configuration (KubedAI chart v1.5.1)
 # This provides base values that can be overridden by blueprints
 
 spark-history-server:
@@ -12,9 +12,8 @@ spark-history-server:
   service:
     type: ClusterIP
     port: 18080
-    targetPort: 18080
 
-  # Resources - conservative defaults for dev
+  # Resources - conservative defaults
   resources:
     requests:
       cpu: 100m
@@ -23,60 +22,36 @@ spark-history-server:
       cpu: 500m
       memory: 1Gi
 
-  # Pod annotations
+  # Pod annotations for monitoring
   podAnnotations:
     prometheus.io/scrape: "true"
     prometheus.io/port: "18080"
-    prometheus.io/path: "/metrics/prometheus"
 
   # Security context
   securityContext:
-    runAsUser: 1000
-    runAsGroup: 1000
-    fsGroup: 1000
-
-  # Pod security context
-  podSecurityContext:
     runAsNonRoot: true
+    runAsUser: 185
+    fsGroup: 65534
 
-  # Node selector for placement
-  nodeSelector:
-    kubernetes.io/arch: "amd64"
+  # Spark History Server configuration
+  sparkHistoryOpts: "-Dspark.history.fs.logDirectory=s3a://{{ .Values.global.s3BucketName }}/spark-event-logs/"
 
-  # Tolerations for scheduling
-  tolerations: []
+  # Environment variables
+  env:
+    - name: AWS_REGION
+      value: "{{ .Values.global.region }}"
 
-  # Affinity rules
-  affinity: {}
-
-  # Ingress configuration (disabled by default)
-  ingress:
-    enabled: false
-    className: ""
-    annotations: {}
-    hosts: []
-    tls: []
-
-  # Spark configuration (to be overridden by blueprint)
-  sparkConf:
-    spark.history.ui.port: "18080"
-    spark.history.retainedApplications: "50"
-    spark.history.fs.cleaner.enabled: "true"
-    spark.history.fs.cleaner.interval: "1d"
-    spark.history.fs.cleaner.maxAge: "7d"
-
-  # Environment variables (S3 path will be set by blueprint)
-  env: []
-
-  # Service Account
+  # Service Account (Pod Identity will be configured)
   serviceAccount:
     create: true
     annotations: {}
-    name: ""
 
-  # RBAC
-  rbac:
-    create: true
+  # Node placement
+  nodeSelector:
+    kubernetes.io/arch: "amd64"
+
+  tolerations: []
+  affinity: {}
 
 # Global values that can be overridden
 global:

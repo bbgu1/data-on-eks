@@ -1,10 +1,10 @@
 # Karpenter Addon for Spark on EKS - Dev Environment
-# Only the Karpenter controller configuration (Helm chart v1.6.0)
+# Override base karpenter config from infra/argocd/core/karpenter/values.yaml
 
-# Dev controller settings
+# Dev controller settings (override base)
 karpenter:
   controller:
-    replicas: 1
+    replicas: 1  # Dev uses single replica vs base's 2 replicas
     
     resources:
       requests:
@@ -14,7 +14,6 @@ karpenter:
         cpu: 500m
         memory: 1Gi
 
-  # Dev-specific settings
-  settings:
-    clusterName: "spark-on-eks-dev"
-    interruptionQueue: "spark-on-eks-dev"
+  # Settings will inherit from base values.yaml with global templating
+  # Base handles: clusterName: "{{ .Values.global.clusterName }}"
+  # No need to override here - global parameters from composition.yaml will be used

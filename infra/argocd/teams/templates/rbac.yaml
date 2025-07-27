@@ -39,8 +39,8 @@ rules:
   resources: ["jobs"]
   verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
 
-- apiGroups: ["extensions", "networking.k8s.io"]
-  resources: ["ingresses"]
+- apiGroups: ["networking.k8s.io"]
+  resources: ["ingresses", "networkpolicies"]
   verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
 
 # Workload-specific permissions (include all common workload types)

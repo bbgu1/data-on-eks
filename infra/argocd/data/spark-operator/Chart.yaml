@@ -17,5 +17,5 @@ keywords:
 
 dependencies:
   - name: spark-operator
-    version: "2.2.0"
-    repository: "https://googlecloudplatform.github.io/spark-on-k8s-operator"
+    version: "2.3.0"
+    repository: "https://kubeflow.github.io/spark-operator"

@@ -1,59 +1,88 @@
 # Apache YuniKorn for Spark on EKS - Dev Environment
+# Override base yunikorn config from infra/argocd/data/yunikorn/values.yaml
 
 yunikorn:
-  # Scheduler configuration
+  # Dev scheduler settings (single replica vs production)
   scheduler:
-    replicas: 1
+    replicas: 1  # Dev uses single replica
     
+    # Reduced resources for dev
     resources:
       requests:
-        cpu: 200m
-        memory: 1Gi
+        cpu: 100m  # Reduced from 200m
+        memory: 512Mi
       limits:
-        cpu: 500m
-        memory: 2Gi
+        cpu: 300m  # Reduced from 500m
+        memory: 1Gi
+
+    # Proper YAML string configuration format (required by YuniKorn chart)
+    configuration: |
+      partitions:
+        - name: default
+          placementrules:
+            - name: tag
+              value: namespace
+              create: true
+          queues:
+            - name: root
+              submitacl: "*"
+              properties:
+                preemption.policy: "fence"
+                preemption.delay: "30s"
+              resources:
+                guaranteed:
+                  memory: 50Gi    # Reduced for dev
+                  vcore: 25
+                max:
+                  memory: 100Gi   # Reduced for dev
+                  vcore: 50
+              children:
+                - name: default
+                  submitacl: "*"
+                  resources:
+                    guaranteed:
+                      memory: 20Gi
+                      vcore: 10
+                    max:
+                      memory: 40Gi
+                      vcore: 20
+                - name: spark
+                  submitacl: "*"
+                  resources:
+                    guaranteed:
+                      memory: 30Gi
+                      vcore: 15
+                    max:
+                      memory: 60Gi
+                      vcore: 30
+                - name: "{{ .Values.global.environment }}-workloads"
+                  submitacl: "*"
+                  resources:
+                    guaranteed:
+                      memory: 10Gi
+                      vcore: 5
+                    max:
+                      memory: 20Gi
+                      vcore: 10
   
-  # Web UI
-  web:
+  # Web UI configuration
+  webui:
     enabled: true
-    
     service:
       type: ClusterIP
       port: 9889
-    
+
+  # Admission controller resources (reduced for dev)
+  admissionController:
     resources:
       requests:
-        cpu: 100m
-        memory: 256Mi
+        cpu: 50m   # Reduced for dev
+        memory: 128Mi
       limits:
-        cpu: 200m
-        memory: 512Mi
+        cpu: 150m  # Reduced for dev
+        memory: 256Mi
 
-  # Dev configuration
-  configuration:
-    queues:
-      - name: root
-        submitACL: "*"
-        children:
-          - name: default
-            submitACL: "*"
-            resources:
-              guaranteed:
-                memory: 100Gi
-                vcore: 50
-              max:
-                memory: 200Gi
-                vcore: 100
-          - name: spark
-            submitACL: "*"
-            resources:
-              guaranteed:
-                memory: 200Gi
-                vcore: 100
-              max:
-                memory: 400Gi
-                vcore: 200
-
-  # Dev monitoring
-  monitoring:
+  # Monitoring
+  prometheus:
     enabled: true
+    port: 9080

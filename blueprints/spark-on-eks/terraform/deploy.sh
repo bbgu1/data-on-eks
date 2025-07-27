@@ -221,10 +221,23 @@ step "Deploying ArgoCD Applications"
 info "Waiting for ArgoCD to be ready..."
 kubectl wait --for=condition=available deployment/argocd-server -n argocd --timeout=300s || warning "ArgoCD may still be starting"
 
-# Deploy composition (App of Apps)
+# Deploy composition (App of Apps) with dynamic values
 info "🎯 Deploying Spark blueprint composition..."
-if kubectl apply -f ../composition.yaml; then
-    success "Blueprint composition deployed"
+
+# Get repo root path for local filesystem
+REPO_ROOT=$(cd .. && cd .. && pwd)
+
+# Create temporary composition with actual values
+TEMP_COMPOSITION=$(mktemp)
+sed -e "s|file://LOCAL_REPO_PATH|file://$REPO_ROOT|g" \
+    -e "s|CLUSTER_NAME_PLACEHOLDER|$CLUSTER_NAME|g" \
+    -e "s|REGION_PLACEHOLDER|$REGION|g" \
+    -e "s|S3_BUCKET_PLACEHOLDER|$S3_BUCKET|g" \
+    ../composition.yaml > "$TEMP_COMPOSITION"
+
+if kubectl apply -f "$TEMP_COMPOSITION"; then
+    success "Blueprint composition deployed with cluster-specific values"
+    rm "$TEMP_COMPOSITION"
 else
     error "Failed to deploy blueprint composition"
 fi

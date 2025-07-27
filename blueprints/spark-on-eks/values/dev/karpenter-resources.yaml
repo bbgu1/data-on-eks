@@ -1,15 +1,14 @@
 # Karpenter Resources for Spark on EKS - Dev Environment
-# NodePools and NodeClasses for Spark workloads
+# Override base karpenter-resources config from infra/argocd/core/karpenter-resources/values.yaml
 
-# Spark NodePools
-sparkNodePools:
-  # General purpose Spark nodes
+# Override base nodePools with Spark-specific configuration
+nodePools:
   - name: spark-general
     metadata:
       labels:
         type: karpenter
         blueprint: spark-on-eks
-        environment: dev
+        environment: "{{ .Values.global.environment }}"
     spec:
       template:
         spec:
@@ -40,27 +39,28 @@ sparkNodePools:
       
       disruption:
         consolidationPolicy: WhenEmptyOrUnderutilized
-        consolidateAfter: 1m
+        consolidateAfter: 30s  # Faster consolidation for dev
 
-# Spark EC2NodeClasses
-sparkEC2NodeClasses:
+# Override base ec2NodeClasses with Spark configuration
+ec2NodeClasses:
   - name: spark-general
     metadata:
       labels:
         blueprint: spark-on-eks
-        environment: dev
+        environment: "{{ .Values.global.environment }}"
     spec:
       amiFamily: AL2023
       instanceStorePolicy: RAID0
       
+      # Use global templating instead of hardcoded values
       subnetSelectorTerms:
         - tags:
-            karpenter.sh/discovery: "spark-on-eks-dev"
+            karpenter.sh/discovery: "{{ .Values.global.clusterName }}"
             Type: "Private"
       
       securityGroupSelectorTerms:
         - tags:
-            karpenter.sh/discovery: "spark-on-eks-dev"
+            karpenter.sh/discovery: "{{ .Values.global.clusterName }}"
             Type: "ClusterSharedNodeSecurityGroup"
       
       blockDeviceMappings:
@@ -71,7 +71,16 @@ sparkEC2NodeClasses:
             encrypted: true
             deleteOnTermination: true
       
+      # Add required metadata options for security
+      metadataOptions:
+        httpEndpoint: enabled
+        httpProtocolIPv6: disabled
+        httpPutResponseHopLimit: 2
+        httpTokens: required
+      
+      detailedMonitoring: true  # Add monitoring
+      
       tags:
         Blueprint: spark-on-eks
-        Environment: dev
+        Environment: "{{ .Values.global.environment }}"
         ManagedBy: karpenter
