@@ -63,7 +63,9 @@ spec:
       project: default
       
       source:
-        repoURL: https://github.com/awslabs/data-on-eks
+        # For local development/testing - ArgoCD uses local filesystem
+        # For production - change repoURL to your GitOps repository
+        repoURL: file:///data-on-eks
         targetRevision: HEAD
         path: "infra/argocd/{{category}}/{{addon}}"
 

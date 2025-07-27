@@ -58,7 +58,9 @@ resource "kubectl_manifest" "spark_teams_argocd_app" {
     spec = {
       project = "default"
       source = {
-        repoURL        = "https://github.com/awslabs/data-on-eks.git"
+        # For local development/testing - ArgoCD uses local filesystem
+        # For production - change repoURL to your GitOps repository
+        repoURL        = "file:///data-on-eks"
         targetRevision = "HEAD"
         path           = "infra/argocd/teams"
         helm = {

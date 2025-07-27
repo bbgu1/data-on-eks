@@ -1,146 +1,47 @@
-# Spark Operator on EKS Blueprint
+# Spark on EKS Blueprint
 
-This blueprint deploys Apache Spark on Amazon EKS using the Kubernetes Spark Operator and Karpenter for dynamic node scaling.
-
-## Architecture
-
-This blueprint uses the new **Data-on-EKS v2 architecture** with clear separation of concerns:
-
-- **Terraform**: AWS infrastructure only (VPC, EKS, IAM, S3)
-- **ArgoCD**: Kubernetes applications (Spark Operator, Karpenter NodePools, Monitoring)
-- **GitOps**: All K8s resources managed via ArgoCD applications
-
-### Directory Structure
-
-```
-blueprints/spark-on-eks/
-├── terraform/                 # Infrastructure as Code
-│   ├── deploy.sh             # 🚀 MAIN DEPLOYMENT SCRIPT
-│   ├── cleanup.sh            # Cleanup script
-│   ├── main.tf               # Terraform configuration
-│   ├── pod-identity.tf       # Spark Pod Identity roles
-│   ├── variables.tf          # Variable definitions
-│   └── outputs.tf            # Output values
-├── composition.yaml          # ArgoCD ApplicationSet (GitOps)
-├── values/                   # Blueprint-specific overrides
-│   └── dev/                  # Environment-specific values
-│       ├── karpenter.yaml           # 12 Spark NodePools config
-│       ├── spark-operator.yaml      # Spark Operator config
-│       ├── spark-history-server.yaml # History Server config
-│       ├── prometheus-stack.yaml    # Monitoring config
-│       ├── aws-load-balancer-controller.yaml
-│       └── yunikorn.yaml           # Optional scheduler
-└── examples/                 # Spark job examples
-    ├── karpenter/           # Karpenter-optimized jobs
-    ├── benchmark/           # Performance testing
-    ├── docker/              # Custom Docker images
-    ├── mountpoint-s3-spark/ # S3 integration examples
-    └── s3-tables/           # S3 Tables examples
-```
-
-### Addon Library Structure (Reusable)
-
-```
-infra/argocd/                 # Reusable addon library
-├── core/                    # Infrastructure addons
-│   ├── karpenter/
-│   └── aws-load-balancer-controller/
-├── data/                    # Data platform addons
-│   ├── spark-operator/
-│   ├── spark-history-server/
-│   └── yunikorn/
-└── observability/           # Monitoring addons
-    └── prometheus-stack/
-```
-
-### Deployment Flow
-
-1. **Terraform** deploys AWS infrastructure (VPC, EKS, Pod Identity)
-2. **ArgoCD App of Apps** bootstraps all Kubernetes applications
-3. **Sync Wave 1**: App of Apps (bootstrap)
-4. **Sync Wave 2**: Karpenter NodePools (infrastructure)
-5. **Sync Wave 3**: Spark Operator (application)
-6. **Sync Wave 4**: Spark History Server (monitoring)
+Deploy Apache Spark on Amazon EKS with Karpenter auto-scaling and GitOps management.
 
 ## Quick Start
 
 ### 1. Deploy Infrastructure
 
-**Use the deployment script in the `terraform/` folder:**
-
 ```bash
 cd blueprints/spark-on-eks/terraform
-./deploy.sh us-west-2  # Replace with your desired region
+./deploy.sh us-west-2  # Replace with your region
 ```
 
-This script will:
-- ✅ Deploy VPC and EKS cluster
-- ✅ Configure Pod Identity for Spark workloads
-- ✅ Set up S3 bucket for Spark event logs
-- ✅ Install ArgoCD for GitOps
-- ✅ Deploy all Spark addons via ArgoCD ApplicationSet
+### 2. Deploy Applications
 
-### 2. Verify Deployment
-
-Check ArgoCD applications:
 ```bash
+# Configure kubectl
+aws eks --region us-west-2 update-kubeconfig --name $(terraform output -raw cluster_name)
+
+# Deploy Spark applications via ArgoCD
+kubectl apply -f ../composition.yaml
+```
+
+### 3. Verify Deployment
+
+```bash
+# Check ArgoCD applications
 kubectl get applications -n argocd
-```
 
-Check Karpenter NodePools:
-```bash
+# Check Karpenter NodePools
 kubectl get nodepools -n karpenter
+
+# Check Spark Operator
+kubectl get pods -n spark-operator
+
+# Submit test job
+kubectl apply -f examples/karpenter/pyspark-pi-job.yaml
 ```
 
-### 3. Cleanup
+### 4. Cleanup
 
 ```bash
 cd blueprints/spark-on-eks/terraform
 ./cleanup.sh us-west-2  # Replace with your region
-```
-
-### Alternative: Manual Deployment
-
-```bash
-cd blueprints/spark-on-eks/terraform
-
-# Copy and customize variables
-cp terraform.tfvars.example terraform.tfvars
-# Edit terraform.tfvars with your values
-
-# Deploy using the provided script
-./deploy.sh us-west-2
-
-# Or manually:
-terraform init
-terraform plan -var-file=terraform.tfvars
-terraform apply -var-file=terraform.tfvars
-```
-
-### 2. Configure kubectl
-
-```bash
-# Get cluster name from Terraform output
-cluster_name=$(terraform output -raw cluster_name)
-aws eks --region <region> update-kubeconfig --name $cluster_name
-```
-
-### 3. Deploy Applications via ArgoCD
-
-```bash
-# Deploy the Spark stack (App of Apps pattern)
-kubectl apply -f ../argocd-apps/spark-app-of-apps.yaml
-
-# Monitor ArgoCD deployments
-kubectl get applications -n argocd
-
-# Port forward to ArgoCD UI (optional)
-kubectl port-forward svc/argocd-server -n argocd 8080:443
-
-# Access ArgoCD UI at https://localhost:8080
-# Username: admin
-# Password: Get from secret
-kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
 ```
 
 ## What's Deployed
