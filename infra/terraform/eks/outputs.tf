@@ -54,6 +54,16 @@ output "karpenter_pod_identity_role_arn" {
   value       = aws_iam_role.karpenter_pod_identity_role.arn
 }
 
+output "karpenter_sqs_queue_name" {
+  description = "Karpenter SQS interruption queue name"
+  value       = module.karpenter_sqs.queue_name
+}
+
+output "karpenter_node_instance_profile" {
+  description = "Karpenter node instance profile name"
+  value       = try(module.eks.eks_managed_node_groups.initial.iam_role_name, "")
+}
+
 # output "karpenter_node_instance_profile" {
 #   description = "Karpenter node instance profile name"
 #   value       = try(aws_iam_instance_profile.karpenter_node_instance_profile.name, null)

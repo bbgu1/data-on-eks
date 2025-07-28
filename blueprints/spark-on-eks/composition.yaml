@@ -83,6 +83,10 @@ spec:
               value: "REGION_PLACEHOLDER"
             - name: global.s3BucketName
               value: "S3_BUCKET_PLACEHOLDER"
+            - name: global.karpenterSqsQueueName
+              value: "KARPENTER_SQS_PLACEHOLDER"
+            - name: global.karpenterNodeInstanceProfile
+              value: "KARPENTER_NODE_PROFILE_PLACEHOLDER"
       
       destination:
         server: https://kubernetes.default.svc

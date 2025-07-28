@@ -188,9 +188,13 @@ step "Configuring Kubernetes Access"
 # Get cluster details
 CLUSTER_NAME=$(terraform output -raw cluster_name 2>/dev/null) || error "Failed to get cluster name from Terraform output"
 S3_BUCKET=$(terraform output -raw s3_bucket_name 2>/dev/null) || error "Failed to get S3 bucket from Terraform output"
+KARPENTER_SQS_QUEUE=$(terraform output -raw karpenter_sqs_queue_name 2>/dev/null) || error "Failed to get Karpenter SQS queue name from Terraform output"
+KARPENTER_NODE_PROFILE=$(terraform output -raw karpenter_node_instance_profile 2>/dev/null) || error "Failed to get Karpenter node instance profile from Terraform output"
 
 info "Cluster Name: $CLUSTER_NAME"
 info "S3 Bucket: $S3_BUCKET"
+info "Karpenter SQS Queue: $KARPENTER_SQS_QUEUE"
+info "Karpenter Node Profile: $KARPENTER_NODE_PROFILE"
 
 # Configure kubectl
 info "Configuring kubectl access..."
@@ -233,6 +237,8 @@ sed -e "s|file://LOCAL_REPO_PATH|file://$REPO_ROOT|g" \
     -e "s|CLUSTER_NAME_PLACEHOLDER|$CLUSTER_NAME|g" \
     -e "s|REGION_PLACEHOLDER|$REGION|g" \
     -e "s|S3_BUCKET_PLACEHOLDER|$S3_BUCKET|g" \
+    -e "s|KARPENTER_SQS_PLACEHOLDER|$KARPENTER_SQS_QUEUE|g" \
+    -e "s|KARPENTER_NODE_PROFILE_PLACEHOLDER|$KARPENTER_NODE_PROFILE|g" \
     ../composition.yaml > "$TEMP_COMPOSITION"
 
 if kubectl apply -f "$TEMP_COMPOSITION"; then

@@ -1,12 +1,17 @@
-# Karpenter Resources for Spark on EKS - Dev Environment
-# Override base karpenter-resources config from infra/argocd/core/karpenter-resources/values.yaml
+# Karpenter NodePools and EC2NodeClasses for Spark Workloads
+# API Reference: https://karpenter.sh/docs/concepts/nodepools/
+# EC2NodeClass Reference: https://karpenter.sh/docs/concepts/nodeclasses/
 
-# Override base nodePools with Spark-specific configuration
+global:
+  clusterName: ""
+  environment: "dev"
+  karpenterNodeInstanceProfile: ""
+
+# Spark-optimized NodePools
 nodePools:
   - name: spark-general
     metadata:
       labels:
-        type: karpenter
         blueprint: spark-on-eks
         environment: "{{ .Values.global.environment }}"
     spec:
@@ -17,70 +22,83 @@ nodePools:
             kind: EC2NodeClass
             name: spark-general
           
+          # Spark-optimized instance requirements
           requirements:
             - key: "karpenter.sh/capacity-type"
               operator: In
-              values: ["spot", "on-demand"]
+              values: ["spot", "on-demand"]  # Prefer spot for cost savings
             - key: "kubernetes.io/arch"
               operator: In
               values: ["amd64"]
-            - key: "karpenter.k8s.aws/instance-category"
+            - key: "karpenter.k8s.aws/instance-family"
               operator: In
-              values: ["c", "m", "r"]
+              values: ["c5d", "c6id", "m5d", "m6id", "r5d", "r6id"]  # NVMe storage
             - key: "karpenter.k8s.aws/instance-size"
               operator: In
-              values: ["large", "xlarge", "2xlarge", "4xlarge"]
+              values: ["2xlarge", "4xlarge", "8xlarge", "12xlarge"]
           
-          expireAfter: 30m
-          terminationGracePeriod: 60s
+          # Optional: Taint nodes for Spark workloads only
+          taints:
+            - key: spark-workloads
+              value: "true"
+              effect: NoSchedule
+          
+          expireAfter: 1h  # Dev workload lifetime
       
       limits:
-        cpu: 1000
+        cpu: 1000  # Dev environment CPU limit
       
       disruption:
         consolidationPolicy: WhenEmptyOrUnderutilized
-        consolidateAfter: 30s  # Faster consolidation for dev
+        consolidateAfter: 30s
 
-# Override base ec2NodeClasses with Spark configuration
+# Spark-optimized EC2NodeClasses  
 ec2NodeClasses:
   - name: spark-general
-    metadata:
-      labels:
-        blueprint: spark-on-eks
-        environment: "{{ .Values.global.environment }}"
     spec:
-      amiFamily: AL2023
-      instanceStorePolicy: RAID0
+      # IAM role for EC2 instances
+      role: "{{ .Values.global.karpenterNodeInstanceProfile }}"
       
-      # Use global templating instead of hardcoded values
-      subnetSelectorTerms:
+      amiFamily: AL2023
+      
+      amiSelectorTerms:
+        - alias: al2023@latest
+      
+      # Use standard Karpenter discovery tags
+      subnetSelectorTerms:    
         - tags:
             karpenter.sh/discovery: "{{ .Values.global.clusterName }}"
-            Type: "Private"
       
       securityGroupSelectorTerms:
         - tags:
             karpenter.sh/discovery: "{{ .Values.global.clusterName }}"
-            Type: "ClusterSharedNodeSecurityGroup"
       
+      # RAID0 for Spark local storage performance
+      instanceStorePolicy: RAID0
+      
+      # Optimized EBS configuration for Spark
       blockDeviceMappings:
         - deviceName: /dev/xvda
           ebs:
             volumeSize: 100Gi
             volumeType: gp3
+            iops: 3000
+            throughput: 125
             encrypted: true
             deleteOnTermination: true
       
-      # Add required metadata options for security
+      # Security best practices
       metadataOptions:
         httpEndpoint: enabled
         httpProtocolIPv6: disabled
         httpPutResponseHopLimit: 2
         httpTokens: required
       
-      detailedMonitoring: true  # Add monitoring
-      
-      tags:
-        Blueprint: spark-on-eks
-        Environment: "{{ .Values.global.environment }}"
-        ManagedBy: karpenter
+      # Optional: Custom user data for Spark optimization
+      userData: |
+        #!/bin/bash
+        # Configure local NVMe for Spark scratch space
+        /opt/aws/bin/configure-eks-local-storage.sh
+        # Optimize for Spark workloads
+        echo 'vm.swappiness=1' >> /etc/sysctl.conf
+        sysctl -p
