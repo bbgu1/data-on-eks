@@ -58,3 +58,20 @@ output "spark_teams_associations" {
   description = "Map of Spark team Pod Identity association details"
   value       = module.spark_teams.pod_identity_associations
 }
+
+output "s3_bucket_name" {
+  description = "S3 Bucket for Spark Logs"
+  value = module.s3_bucket.s3_bucket_id
+}
+
+output "karpenter_sqs_queue_name" {
+  description = "Karpenter SQS interruption queue name"
+  value = module.eks_blueprint.karpenter_sqs_queue_name
+  # value       = module.karpenter_sqs.queue_name
+}
+
+output "karpenter_node_instance_profile" {
+  description = "Karpenter node instance profile name"
+  value       = module.eks_blueprint.karpenter_node_instance_profile
+}
+

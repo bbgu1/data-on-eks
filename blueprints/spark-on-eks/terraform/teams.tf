@@ -1,4 +1,35 @@
 #---------------------------------------------------------------
+# S3 bucket for Spark Event Logs and Example Data
+#---------------------------------------------------------------
+#tfsec:ignore:*
+module "s3_bucket" {
+  source  = "terraform-aws-modules/s3-bucket/aws"
+  version = "~> 3.0"
+
+  bucket_prefix = "${local.name}-spark-logs-"
+
+  # For example only - please evaluate for your environment
+  force_destroy = true
+
+  server_side_encryption_configuration = {
+    rule = {
+      apply_server_side_encryption_by_default = {
+        sse_algorithm = "AES256"
+      }
+    }
+  }
+
+  tags = local.tags
+}
+
+# Creating an s3 bucket prefix. Ensure you copy Spark History event logs under this path to visualize the dags
+resource "aws_s3_object" "this" {
+  bucket       = module.s3_bucket.s3_bucket_id
+  key          = "spark-event-logs/"
+  content_type = "application/x-directory"
+}
+
+#---------------------------------------------------------------
 # Spark Teams using Teams Module with Pod Identity
 #---------------------------------------------------------------
 
@@ -127,8 +158,8 @@ data "aws_iam_policy_document" "spark_jobs" {
     sid       = "S3Access"
     effect    = "Allow"
     resources = [
-      aws_s3_bucket.spark.arn,
-      "${aws_s3_bucket.spark.arn}/*"
+      module.s3_bucket.s3_bucket_arn,
+      "${module.s3_bucket.s3_bucket_arn}/*"
     ]
 
     actions = [

@@ -43,8 +43,6 @@ locals {
   }
 }
 
-data "aws_partition" "current" {}
-
 # Karpenter Pod Identity Role
 resource "aws_iam_role" "karpenter_pod_identity_role" {
   name = "${var.name}-karpenter-pod-identity-role"
