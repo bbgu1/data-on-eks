@@ -8,9 +8,9 @@ nodeSelector:
 dnsPolicy: Default
 
 settings:
-  clusterName: "{{ .Values.global.clusterName }}"
-  clusterEndpoint: "{{ .Values.global.clusterEndpoint }}"
-  interruptionQueue: "{{ .Values.global.karpenterSqsQueueName }}"
+  clusterName: ""
+  clusterEndpoint: ""
+  interruptionQueue: ""
 
 webhook:
   enabled: false

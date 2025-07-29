@@ -75,9 +75,9 @@ spec:
             - ../../../../blueprints/spark-on-eks/values/{{env}}/{{addon}}.yaml
           
           parameters:
-            - name: global.clusterName
+            - name: settings.clusterName
               value: "CLUSTER_NAME_PLACEHOLDER"
-            - name: global.clusterEndpoint
+            - name: settings.clusterEndpoint
               value: "CLUSTER_ENDPOINT_PLACEHOLDER"  
             - name: global.environment
               value: "{{env}}"
@@ -85,7 +85,7 @@ spec:
               value: "REGION_PLACEHOLDER"
             - name: global.s3BucketName
               value: "S3_BUCKET_PLACEHOLDER"
-            - name: global.karpenterSqsQueueName
+            - name: settings.karpenterSqsQueueName
               value: "KARPENTER_SQS_PLACEHOLDER"
 
       
