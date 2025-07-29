@@ -85,7 +85,7 @@ spec:
               value: "REGION_PLACEHOLDER"
             - name: global.s3BucketName
               value: "S3_BUCKET_PLACEHOLDER"
-            - name: settings.karpenterSqsQueueName
+            - name: settings.interruptionQueue
               value: "KARPENTER_SQS_PLACEHOLDER"
 
       
