@@ -49,32 +49,20 @@ output "eks_managed_node_groups" {
   value       = module.eks.eks_managed_node_groups
 }
 
-output "karpenter_pod_identity_role_arn" {
-  description = "Karpenter Pod Identity role ARN"
-  value       = aws_iam_role.karpenter_pod_identity_role.arn
-}
 
 output "karpenter_sqs_queue_name" {
   description = "Karpenter SQS interruption queue name"
-  value       = module.karpenter_sqs.queue_name
+  value       = module.karpenter.queue_name
 }
 
 output "karpenter_node_instance_profile" {
   description = "Karpenter node instance profile name"
-  value       = try(module.eks.eks_managed_node_groups.initial.iam_role_name, "")
+  value       = module.karpenter.instance_profile_name
 }
-
-# output "karpenter_node_instance_profile" {
-#   description = "Karpenter node instance profile name"
-#   value       = try(aws_iam_instance_profile.karpenter_node_instance_profile.name, null)
-# }
 
 output "karpenter_node_iam_role_arn" {
   description = "Karpenter node IAM role ARN for access entries"
-  value = try(
-    values(module.eks.eks_managed_node_groups)[0].iam_role_arn,
-    module.eks.eks_managed_node_groups_defaults.iam_role_arn
-  )
+  value = module.karpenter.iam_role_arn
 }
 
 output "ebs_csi_pod_identity_role_arn" {

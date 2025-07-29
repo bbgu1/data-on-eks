@@ -42,6 +42,7 @@ module "vpc" {
   private_subnet_tags = merge(var.private_subnet_tags, {
     "kubernetes.io/role/internal-elb" = 1
     # Karpenter discovery tag will be added by the blueprint
+    "karpenter.sh/discovery" = var.name
   })
 
   tags = var.tags

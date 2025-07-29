@@ -38,17 +38,6 @@ output "configure_kubectl" {
   value       = "aws eks --region ${local.region} update-kubeconfig --name ${module.eks_blueprint.cluster_name}"
 }
 
-# output "configure_argocd" {
-#   description = "Configure ArgoCD: Port forward to access ArgoCD UI"
-#   value       = "kubectl port-forward svc/argocd-server -n argocd 8080:443"
-# }
-
-# output "argocd_admin_password" {
-#   description = "Get ArgoCD admin password"
-#   value       = "kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d"
-#   sensitive   = true
-# }
-
 output "spark_teams_roles" {
   description = "Map of Spark team names to their Pod Identity role ARNs"
   value       = module.spark_teams.team_roles
@@ -67,11 +56,14 @@ output "s3_bucket_name" {
 output "karpenter_sqs_queue_name" {
   description = "Karpenter SQS interruption queue name"
   value = module.eks_blueprint.karpenter_sqs_queue_name
-  # value       = module.karpenter_sqs.queue_name
 }
 
-output "karpenter_node_instance_profile" {
+output "karpenter_node_node_iam_role_arn" {
+  description = "Karpenter node IAM Role ARN"
+  value       = module.eks_blueprint.karpenter_node_iam_role_arn
+}
+
+output "karpenter_node_instance_profile_name" {
   description = "Karpenter node instance profile name"
   value       = module.eks_blueprint.karpenter_node_instance_profile
 }
-

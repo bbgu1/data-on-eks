@@ -113,8 +113,9 @@ EOF
     step "⚙️  Kubernetes Configuration"
     
     # Get cluster details
-    local cluster_name s3_bucket vpc_id
+    local cluster_name cluster_endpoint s3_bucket vpc_id
     cluster_name=$(terraform output -raw cluster_name) || error "Failed to get cluster name"
+    cluster_endpoint=$(terraform output -raw cluster_endpoint) || error "Failed to get cluster endpoint"
     s3_bucket=$(terraform output -raw s3_bucket_name 2>/dev/null || echo "N/A")
     vpc_id=$(terraform output -raw vpc_id 2>/dev/null || echo "N/A")
     
@@ -201,7 +202,7 @@ EOF
         -e "s|REGION_PLACEHOLDER|$REGION|g" \
         -e "s|S3_BUCKET_PLACEHOLDER|$s3_bucket|g" \
         -e "s|KARPENTER_SQS_PLACEHOLDER|$karpenter_sqs_queue|g" \
-        -e "s|KARPENTER_NODE_PROFILE_PLACEHOLDER|$karpenter_node_profile|g" \
+        -e "s|CLUSTER_ENDPOINT_PLACEHOLDER|$cluster_endpoint|g" \
         ../composition.yaml > "$temp_composition"
     
     # Deploy teams application via Terraform

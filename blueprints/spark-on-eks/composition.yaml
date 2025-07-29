@@ -77,6 +77,8 @@ spec:
           parameters:
             - name: global.clusterName
               value: "CLUSTER_NAME_PLACEHOLDER"
+            - name: global.clusterEndpoint
+              value: "CLUSTER_ENDPOINT_PLACEHOLDER"  
             - name: global.environment
               value: "{{env}}"
             - name: global.region
@@ -85,8 +87,7 @@ spec:
               value: "S3_BUCKET_PLACEHOLDER"
             - name: global.karpenterSqsQueueName
               value: "KARPENTER_SQS_PLACEHOLDER"
-            - name: global.karpenterNodeInstanceProfile
-              value: "KARPENTER_NODE_PROFILE_PLACEHOLDER"
+
       
       destination:
         server: https://kubernetes.default.svc

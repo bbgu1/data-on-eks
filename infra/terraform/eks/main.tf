@@ -11,8 +11,10 @@ data "aws_region" "current" {}
 data "aws_caller_identity" "current" {}
 
 locals {
+
+  name = var.name
   tags = merge(var.tags, {
-    Blueprint  = var.name
+    Blueprint  = local.name
     GithubRepo = "github.com/awslabs/data-on-eks"
   })
 
@@ -98,7 +100,7 @@ module "eks" {
   source  = "terraform-aws-modules/eks/aws"
   version = "~> 20.33"
 
-  cluster_name    = var.name
+  cluster_name    = local.name
   cluster_version = var.eks_cluster_version
 
   #WARNING: Avoid using this option (cluster_endpoint_public_access = true) in preprod or prod accounts. This feature is designed for sandbox accounts, simplifying cluster deployment and testing.
