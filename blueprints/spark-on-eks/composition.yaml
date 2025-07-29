@@ -36,17 +36,17 @@ spec:
                 - addon: spark-operator
                   category: data
                   namespace: spark-operator
-                  syncWave: "3"
+                  syncWave: "1"
                 
                 - addon: spark-history-server
                   category: data
-                  namespace: spark-operator
-                  syncWave: "4"
+                  namespace: spark-history-server
+                  syncWave: "1"
                 
                 - addon: yunikorn
                   category: data
                   namespace: yunikorn
-                  syncWave: "3"
+                  syncWave: "1"
 
   template:
     metadata:
@@ -64,15 +64,15 @@ spec:
       
       source:
         # For local development/testing - ArgoCD uses local filesystem
-        # For production - change repoURL to your GitOps repository
-        repoURL: file:///data-on-eks
-        targetRevision: HEAD
+        # Using local Gitea repository for development
+        repoURL: http://gitea-http.gitea.svc.cluster.local:3000/gitea_admin/data-on-eks.git
+        targetRevision: main
         path: "infra/argocd/{{category}}/{{addon}}"
 
         helm:
           valueFiles:
             - values.yaml
-            - ../../../blueprints/spark-on-eks/values/{{env}}/{{addon}}.yaml
+            - ../../../../blueprints/spark-on-eks/values/{{env}}/{{addon}}.yaml
           
           parameters:
             - name: global.clusterName

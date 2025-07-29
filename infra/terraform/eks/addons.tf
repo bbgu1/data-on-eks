@@ -38,6 +38,111 @@ resource "kubernetes_storage_class" "ebs_csi_encrypted_gp3_storage_class" {
 }
 
 #---------------------------------------------------------------
+# Gitea Installation via Terraform (Local Git Server)
+#---------------------------------------------------------------
+resource "random_password" "gitea_admin_password" {
+  length  = 16
+  special = true
+  upper   = true
+  lower   = true
+  numeric = true
+}
+
+resource "kubernetes_secret" "gitea_admin_secret" {
+  metadata {
+    name      = "gitea-admin-secret"
+    namespace = "gitea"
+  }
+
+  data = {
+    username = "gitea_admin"
+    password = random_password.gitea_admin_password.result
+    email    = "admin@admin.admin"
+  }
+
+  depends_on = [module.eks.eks_cluster_id]
+}
+
+resource "helm_release" "gitea" {
+  name             = "gitea"
+  repository       = "https://dl.gitea.com/charts/"
+  chart            = "gitea"
+  version          = "12.1.1"
+  timeout          = 180
+  namespace        = "gitea"
+  create_namespace = true
+
+  values = [
+    <<-EOT
+    gitea:
+      admin:
+        # For production, consider using a Kubernetes secret for credentials
+        username: gitea_admin
+        password: "${random_password.gitea_admin_password.result}"
+        email: "admin@admin.admin"
+      
+      config:
+        # Disable password expiration
+        security:
+          PASSWORD_COMPLEXITY: "off"
+          DISABLE_PASSWORD_COMPLEXITY_CHECK: true
+          PASSWORD_EXPIRATION_DAYS: -1  # Password will not expire
+        
+        # Recommended cache settings for better performance
+        cache:
+          ADAPTER: memory
+
+    # Single replica as HA is not required
+    replicaCount: 1
+
+    valkey-cluster:
+      enabled: false
+
+    persistence:
+      enabled: true
+      size: 30Gi
+
+    postgresql-ha:
+      enabled: false
+
+    postgresql:
+      enabled: true  # Use the built-in PostgreSQL
+      global:
+        postgresql:
+          auth:
+            username: gitea
+            database: gitea
+      primary:
+        persistence:
+          enabled: true
+          size: 10Gi
+        resources:
+          requests:
+            cpu: 1000m
+            memory: 1024Mi
+
+    ingress:
+      enabled: false
+
+    service:
+      http:
+        type: ClusterIP
+        port: 3000
+      ssh:
+        type: ClusterIP
+        port: 22
+
+    EOT
+  ]
+
+  depends_on = [
+    module.eks.eks_cluster_id,
+    kubernetes_storage_class.ebs_csi_encrypted_gp3_storage_class,
+    kubernetes_secret.gitea_admin_secret
+  ]
+}
+
+#---------------------------------------------------------------
 # ArgoCD Installation via Terraform
 #---------------------------------------------------------------
 resource "helm_release" "argocd" {

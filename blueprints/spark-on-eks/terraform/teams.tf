@@ -90,8 +90,8 @@ resource "kubectl_manifest" "spark_teams_argocd_app" {
       project = "default"
       source = {
         # For local development/testing - ArgoCD uses local filesystem
-        # For production - change repoURL to your GitOps repository
-        repoURL        = "file:///data-on-eks"
+        # Using local Gitea repository for development
+        repoURL        = "http://gitea-http.gitea.svc.cluster.local:3000/gitea_admin/data-on-eks.git"
         targetRevision = "HEAD"
         path           = "infra/argocd/teams"
         helm = {

@@ -93,3 +93,27 @@ output "cluster_primary_security_group_id" {
 }
 
 # Spark Operator Pod Identity role moved to blueprint-specific module
+
+#---------------------------------------------------------------
+# Gitea Outputs
+#---------------------------------------------------------------
+output "gitea_admin_username" {
+  description = "Gitea admin username"
+  value       = "gitea_admin"
+}
+
+output "gitea_admin_password" {
+  description = "Gitea admin password"
+  value       = random_password.gitea_admin_password.result
+  sensitive   = true
+}
+
+output "gitea_service_name" {
+  description = "Gitea service name for port-forwarding"
+  value       = "gitea-http"
+}
+
+output "gitea_namespace" {
+  description = "Gitea namespace"
+  value       = "gitea"
+}
