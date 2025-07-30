@@ -55,7 +55,7 @@ output "karpenter_sqs_queue_name" {
   value       = module.karpenter.queue_name
 }
 
-output "karpenter_node_instance_profile" {
+output "karpenter_node_instance_profile_name" {
   description = "Karpenter node instance profile name"
   value       = module.karpenter.instance_profile_name
 }
@@ -78,30 +78,4 @@ output "s3_csi_pod_identity_role_arn" {
 output "cluster_primary_security_group_id" {
   description = "Cluster security group that was created by Amazon EKS for the cluster"
   value       = module.eks.cluster_primary_security_group_id
-}
-
-# Spark Operator Pod Identity role moved to blueprint-specific module
-
-#---------------------------------------------------------------
-# Gitea Outputs
-#---------------------------------------------------------------
-output "gitea_admin_username" {
-  description = "Gitea admin username"
-  value       = "gitea_admin"
-}
-
-output "gitea_admin_password" {
-  description = "Gitea admin password"
-  value       = random_password.gitea_admin_password.result
-  sensitive   = true
-}
-
-output "gitea_service_name" {
-  description = "Gitea service name for port-forwarding"
-  value       = "gitea-http"
-}
-
-output "gitea_namespace" {
-  description = "Gitea namespace"
-  value       = "gitea"
 }

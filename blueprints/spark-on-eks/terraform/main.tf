@@ -77,7 +77,7 @@ module "vpc_blueprint" {
 }
 
 #---------------------------------------------------------------
-# EKS Cluster using base module
+# EKS Cluster, Karpenter and ArgoCD Deployment Module
 #---------------------------------------------------------------
 module "eks_blueprint" {
   source = "../../../infra/terraform/eks"

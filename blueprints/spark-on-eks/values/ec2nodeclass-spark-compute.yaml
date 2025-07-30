@@ -1,0 +1,26 @@
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: spark-compute
+  namespace: karpenter
+spec:
+  role: "${karpenter_node_instance_profile}"
+  amiFamily: AL2023
+  
+  subnetSelectorTerms:    
+    - tags:
+        karpenter.sh/discovery: "${cluster_name}"
+  
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "${cluster_name}"
+  
+  instanceStorePolicy: RAID0
+  
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs:
+        volumeSize: 100Gi
+        volumeType: gp3
+        encrypted: true
+        deleteOnTermination: true

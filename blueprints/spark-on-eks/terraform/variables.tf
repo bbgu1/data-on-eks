@@ -83,3 +83,25 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+#---------------------------------------------------------------
+# ArgoCD Application Toggles
+#---------------------------------------------------------------
+variable "enable_spark_operator" {
+  description = "Enable Spark Operator deployment via ArgoCD"
+  type        = bool
+  default     = true
+}
+
+variable "enable_spark_history_server" {
+  description = "Enable Spark History Server deployment via ArgoCD"
+  type        = bool
+  default     = true
+}
+
+variable "enable_yunikorn" {
+  description = "Enable YuniKorn scheduler deployment via ArgoCD"
+  type        = bool
+  default     = true
+}
+

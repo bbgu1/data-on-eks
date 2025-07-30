@@ -1,0 +1,40 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: spark-history-server
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://kubedai.github.io
+    chart: spark-history-server
+    targetRevision: "1.5.1"
+    helm:
+      values: |
+        logStore:
+          type: "s3"
+          s3:
+            bucket: "${s3_bucket_name}"  
+            eventLogsPath: "${s3_event_log_path}" 
+            irsaRoleArn: "${shs_role_arn}"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: spark-history-server
+  
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

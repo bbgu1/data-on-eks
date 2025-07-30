@@ -1,0 +1,83 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: yunikorn
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://apache.github.io/yunikorn-release
+    chart: yunikorn
+    targetRevision: "1.6.3"
+    helm:
+      values: |
+        yunikornDefaults:
+          # The default volume bind timeout value of 10 seconds may be too short for EBS.
+          service.volumeBindTimeout: "60s"
+          service.placeholderImage: registry.k8s.io/pause:3.7
+          service.operatorPlugins: "general,spark-k8s-operator"
+          admissionController.filtering.bypassNamespaces: "^kube-system$"
+          # Use this configuration to configure absolute capacities for yunikorn queues
+          # The Default partition uses BinPacking on Nodes by default https://yunikorn.apache.org/docs/next/user_guide/sorting_policies/#node-sorting
+          queues.yaml: |
+            partitions:
+              - name: default
+                nodesortpolicy:
+                  type: binpacking
+                queues:
+                  - name: root
+                    submitacl: '*'
+                    queues:
+                      - name: default
+                        resources:
+                          guaranteed:
+                            memory: 1000G
+                            vcore: 1000
+                          max:
+                            memory: 1000G
+                            vcore: 1000
+                      - name: prod
+                        resources:
+                          guaranteed:
+                            memory: 500G
+                            vcore: 50
+                          max:
+                            memory: 800G
+                            vcore: 300
+                      - name: test
+                        resources:
+                          guaranteed:
+                            memory: 100G
+                            vcore: 10
+                          max:
+                            memory: 800G
+                            vcore: 50
+                      - name: dev
+                        resources:
+                          guaranteed:
+                            memory: 100G
+                            vcore: 10
+                          max:
+                            memory: 100G
+                            vcore: 10
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: yunikorn
+  
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
