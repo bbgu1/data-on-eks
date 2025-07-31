@@ -16,27 +16,7 @@ spec:
     repository_password: ${repository_password}
     targetRevision: "1.6.0"
     helm:
-      # 1. Default values (lowest priority)
-      valuesObject:
-        controller:
-          resources:
-            requests:
-              cpu: 1
-              memory: 1Gi
-            limits:
-              cpu: 1
-              memory: 1Gi
-        nodeSelector:
-          karpenter.sh/controller: 'true'
-        dnsPolicy: Default
-
-      %{~ if length(additional_value_files) > 0 ~}
-      # 2. User overrides (higher priority) - only if files are provided
-      valueFiles:
-        %{~ for value_file in additional_value_files ~}
-        - ${value_file}
-        %{~ endfor ~}
-      %{~ endif ~}
+      valuesObject: ${merged_values}
 
   destination:
     server: https://kubernetes.default.svc

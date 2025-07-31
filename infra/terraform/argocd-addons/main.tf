@@ -69,8 +69,30 @@ resource "kubectl_manifest" "spark_history_server" {
   count = var.enable_spark_history_server ? 1 : 0
   
   yaml_body = templatefile("${path.module}/../../../infra/argocd-applications/spark-history-server.yaml", {
-    shs_role_arn           = module.spark_history_server_irsa[0].iam_role_arn
-    additional_value_files = var.spark_history_server_helm_config.values != null ? var.spark_history_server_helm_config.values : []
+    merged_values = yamlencode(merge(
+      # Default values using EOT
+      yamldecode(<<-EOT
+        logStore:
+          type: "s3"
+          s3:
+            irsaRoleArn: "${module.spark_history_server_irsa[0].iam_role_arn}"
+        serviceAccount:
+          create: true
+          name: "spark-history-server-sa"
+          annotations:
+            eks.amazonaws.com/role-arn: "${module.spark_history_server_irsa[0].iam_role_arn}"
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+      EOT
+      ),
+      # User provided values - decode YAML strings and merge
+      try(yamldecode(join("\n", var.spark_history_server_helm_config.values)), {})
+    ))
   })
 }
 
@@ -80,8 +102,37 @@ resource "kubectl_manifest" "karpenter" {
   yaml_body = templatefile("${path.module}/../../../infra/argocd-applications/karpenter.yaml", {
     repository_username = data.aws_ecrpublic_authorization_token.token.user_name
     repository_password = data.aws_ecrpublic_authorization_token.token.password
-    
-    additional_value_files    = var.karpenter_helm_config.values != null ? var.karpenter_helm_config.values : []
+    merged_values = yamlencode(merge(
+      # Default values using EOT
+      yamldecode(<<-EOT
+        controller:
+          resources:
+            requests:
+              cpu: "1"
+              memory: "1Gi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+        nodeSelector:
+          karpenter.sh/controller: "true"
+        dnsPolicy: "Default"
+        tolerations:
+          - key: CriticalAddonsOnly
+            operator: Exists
+        affinity:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+              - matchExpressions:
+                - key: karpenter.sh/controller
+                  operator: In
+                  values:
+                  - "true"
+      EOT
+      ),
+      # User provided values - decode YAML strings and merge
+      try(yamldecode(join("\n", var.karpenter_helm_config.values)), {})
+    ))
   })
 }
 
