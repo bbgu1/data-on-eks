@@ -94,3 +94,40 @@ module "eks_blueprint" {
 
   tags = local.tags
 }
+
+# ==============================================================================
+# ArgoCD Applications - Deployed via kubectl_manifest with terraform
+# ==============================================================================
+
+module "argocd_addons" {
+  source = "../../../infra/terraform/argocd-addons"
+
+    oidc_provider_arn = module.eks_blueprint.oidc_provider_arn
+
+    enable_spark_history_server = true
+    spark_history_server_helm_config = {
+      values = [
+        <<-EOT
+        logStore:
+          type: "s3"
+          s3:
+            bucket: ${module.s3_bucket.s3_bucket_id} 
+            eventLogsPath: ${aws_s3_object.this.key}
+        EOT
+      ]
+    }
+
+    enable_karpenter = true
+    karpenter_helm_config = {
+      values = [
+        <<-EOT
+        settings:
+          clusterName: ${module.eks_blueprint.cluster_name}
+          clusterEndpoint: ${module.eks_blueprint.cluster_endpoint}
+          interruptionQueue: ${module.eks_blueprint.karpenter_sqs_queue_name}
+        EOT
+      ]
+    }
+}
+
+

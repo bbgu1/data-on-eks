@@ -10,11 +10,14 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: oci://public.ecr.aws/karpenter
+    repoURL: oci://public.ecr.aws/karpenter/karpenter
     chart: karpenter
+    repository_username: ${repository_username}
+    repository_password: ${repository_password}
     targetRevision: "1.6.0"
     helm:
-      values: |
+      # 1. Default values (lowest priority)
+      valuesObject:
         controller:
           resources:
             requests:
@@ -23,16 +26,17 @@ spec:
             limits:
               cpu: 1
               memory: 1Gi
-        
-        serviceMonitor:
-          enabled: true
-        
-        settings:
-          clusterName: "${cluster_name}"
-          clusterEndpoint: "${cluster_endpoint}"
-          interruptionQueue: "${karpenter_sqs_queue_name}"
-          # -- Marking this true means that your cluster is running with an EKS control plane and Karpenter should attempt to discover cluster details from the DescribeCluster API.
-          eksControlPlane: true
+        nodeSelector:
+          karpenter.sh/controller: 'true'
+        dnsPolicy: Default
+
+      %{~ if length(additional_value_files) > 0 ~}
+      # 2. User overrides (higher priority) - only if files are provided
+      valueFiles:
+        %{~ for value_file in additional_value_files ~}
+        - ${value_file}
+        %{~ endfor ~}
+      %{~ endif ~}
 
   destination:
     server: https://kubernetes.default.svc

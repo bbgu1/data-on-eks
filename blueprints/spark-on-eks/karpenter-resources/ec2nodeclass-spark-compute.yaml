@@ -1,20 +1,20 @@
 apiVersion: karpenter.k8s.aws/v1
 kind: EC2NodeClass
 metadata:
-  name: spark-compute
-  namespace: karpenter
+  name: spark-compute-optimized
 spec:
-  role: "${karpenter_node_instance_profile}"
+  role: "${karpenter_node_iam_role_name}"
   amiFamily: AL2023
-  
+  amiSelectorTerms:
+  - alias: al2023@latest # Amazon Linux 2023
+
   subnetSelectorTerms:    
     - tags:
         karpenter.sh/discovery: "${cluster_name}"
-  
+        Name: "${cluster_name}-private-secondary*" # Only seconddary cidr subnets
   securityGroupSelectorTerms:
     - tags:
-        karpenter.sh/discovery: "${cluster_name}"
-  
+        Name: ${cluster_name}-node
   instanceStorePolicy: RAID0
   
   blockDeviceMappings:

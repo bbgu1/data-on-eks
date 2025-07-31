@@ -8,7 +8,7 @@ terraform {
     }
     kubernetes = {
       source  = "hashicorp/kubernetes"
-      version = ">= 2.32.0, < 3.0.0"
+      version = ">= 2.10"
     }
     helm = {
       source  = "hashicorp/helm"
@@ -16,23 +16,11 @@ terraform {
     }
     kubectl = {
       source  = "alekc/kubectl"
-      version = ">= 2.1.0, < 3.0.0"
-    }
-    tls = {
-      source  = "hashicorp/tls"
-      version = ">= 4.0.0, < 5.0.0"
-    }
-    time = {
-      source  = "hashicorp/time"
-      version = ">= 0.12.0, < 1.0.0"
-    }
-    null = {
-      source  = "hashicorp/null"
-      version = ">= 3.2.0, < 4.0.0"
+      version = ">= 2.0"
     }
     random = {
       source  = "hashicorp/random"
-      version = ">= 3.6.0, < 4.0.0"
+      version = ">= 3.6.0"
     }
   }
 }

@@ -65,5 +65,5 @@ output "karpenter_node_node_iam_role_arn" {
 
 output "karpenter_node_instance_profile_name" {
   description = "Karpenter node instance profile name"
-  value       = module.eks_blueprint.karpenter_node_instance_profile
+  value       = module.eks_blueprint.karpenter_node_instance_profile_name
 }

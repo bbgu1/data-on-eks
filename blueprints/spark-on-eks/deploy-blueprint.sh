@@ -3,9 +3,9 @@
 set -e
 
 # Configuration
-BLUEPRINT_NAME="spark-on-eks"
+BLUEPRINT_NAME="spark-operator"
 TERRAFORM_DIR="terraform"
-AWS_REGION="${AWS_REGION:-us-west-2}"
+AWS_REGION="${AWS_REGION:-us-east-1}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -40,7 +40,7 @@ check_prerequisites() {
 }
 
 # Deploy infrastructure
-deploy_infrastructure() {
+deploy_base_infrastructure() {
     print_status "Deploying $BLUEPRINT_NAME infrastructure..."
     
     cd $TERRAFORM_DIR
@@ -55,14 +55,19 @@ deploy_infrastructure() {
     
     print_status "Deploying VPC and EKS cluster..."
     terraform apply -target=module.vpc_blueprint -target=module.eks_blueprint -auto-approve
-    
+
     # Update kubeconfig
     print_status "Updating kubeconfig..."
     aws eks update-kubeconfig --region $AWS_REGION --name $BLUEPRINT_NAME
+  
+}
+
+# Deploy infrastructure
+deploy_addons() {
+    print_status "Deploying $BLUEPRINT_NAME ArgoCD Addons..."
     
     # Deploy remaining resources
-    print_status "Deploying remaining resources..."
-    terraform plan
+    print_status "Deploying remaining resources and ArgoCD Addons..."
     terraform apply -auto-approve
     
     cd ..
@@ -74,7 +79,7 @@ wait_for_argocd() {
     
     kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n argocd
     kubectl wait --for=condition=available --timeout=300s deployment/argocd-repo-server -n argocd
-    kubectl wait --for=condition=available --timeout=300s deployment/argocd-application-controller -n argocd
+    kubectl wait --for=condition=available --timeout=300s deployment/argocd-applicationset-controller -n argocd
     
     print_status "ArgoCD is ready"
 }
@@ -94,8 +99,8 @@ get_argocd_credentials() {
     echo "Password: $ARGOCD_PASSWORD"
     echo ""
     echo "To access ArgoCD UI:"
-    echo "kubectl port-forward svc/argocd-server -n argocd 8080:443"
-    echo "Then open: https://localhost:8080"
+    echo "kubectl port-forward svc/argocd-server -n argocd 8081:443"
+    echo "Then open: https://localhost:8081"
     echo "(Accept the self-signed certificate)"
     echo "========================================="
     echo ""
@@ -157,9 +162,10 @@ main() {
     print_status "Starting $BLUEPRINT_NAME deployment..."
     
     check_prerequisites
-    deploy_infrastructure
+    deploy_base_infrastructure
     wait_for_argocd
     get_argocd_credentials
+    deploy_addons
     verify_deployment
     print_next_steps
     

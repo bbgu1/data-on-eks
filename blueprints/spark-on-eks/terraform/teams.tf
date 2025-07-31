@@ -73,79 +73,79 @@ module "spark_teams" {
 #---------------------------------------------------------------
 
 # Create ArgoCD Application that deploys team namespaces, service accounts, and RBAC
-resource "kubectl_manifest" "spark_teams_argocd_app" {
-  yaml_body = yamlencode({
-    apiVersion = "argoproj.io/v1alpha1"
-    kind       = "Application"
-    metadata = {
-      name      = "spark-teams"
-      namespace = "argocd"
-      labels = {
-        "app.kubernetes.io/name"      = "spark-teams"
-        "app.kubernetes.io/part-of"   = "spark-on-eks"
-        "app.kubernetes.io/component" = "teams"
-      }
-    }
-    spec = {
-      project = "default"
-      source = {
-        # For local development/testing - ArgoCD uses local filesystem
-        # Using local Gitea repository for development
-        repoURL        = "http://gitea-http.gitea.svc.cluster.local:3000/gitea_admin/data-on-eks.git"
-        targetRevision = "HEAD"
-        path           = "infra/argocd/teams"
-        helm = {
-          valueFiles = ["values.yaml"]
-          values = yamlencode({
-            # Pass team configurations from Terraform to ArgoCD
-            teams = [
-              for team_name, team_config in module.spark_teams.team_configs : {
-                name            = team_config.name
-                namespace       = team_config.namespace
-                serviceAccount  = team_config.service_account
-                roleArn         = team_config.role_arn
-                workloadType    = "spark"
-                resourceQuota = {
-                  "requests.cpu"              = "50"
-                  "requests.memory"           = "100Gi"
-                  "limits.cpu"                = "100"
-                  "limits.memory"             = "200Gi"
-                  "pods"                      = "50"
-                  "services"                  = "5"
-                  "persistentvolumeclaims"    = "5"
-                }
-              }
-            ]
-          })
-        }
-      }
-      destination = {
-        server    = "https://kubernetes.default.svc"
-        namespace = "argocd"
-      }
-      syncPolicy = {
-        automated = {
-          prune    = true
-          selfHeal = true
-        }
-        syncOptions = [
-          "CreateNamespace=true",
-          "RespectIgnoreDifferences=true"
-        ]
-        retry = {
-          limit = 5
-          backoff = {
-            duration    = "5s"
-            factor      = 2
-            maxDuration = "3m"
-          }
-        }
-      }
-    }
-  })
+# resource "kubectl_manifest" "spark_teams_argocd_app" {
+#   yaml_body = yamlencode({
+#     apiVersion = "argoproj.io/v1alpha1"
+#     kind       = "Application"
+#     metadata = {
+#       name      = "spark-teams"
+#       namespace = "argocd"
+#       labels = {
+#         "app.kubernetes.io/name"      = "spark-teams"
+#         "app.kubernetes.io/part-of"   = "spark-on-eks"
+#         "app.kubernetes.io/component" = "teams"
+#       }
+#     }
+#     spec = {
+#       project = "default"
+#       source = {
+#         # For local development/testing - ArgoCD uses local filesystem
+#         # Using local Gitea repository for development
+#         repoURL        = "http://gitea-http.gitea.svc.cluster.local:3000/gitea_admin/data-on-eks.git"
+#         targetRevision = "HEAD"
+#         path           = "infra/argocd/teams"
+#         helm = {
+#           valueFiles = ["values.yaml"]
+#           values = yamlencode({
+#             # Pass team configurations from Terraform to ArgoCD
+#             teams = [
+#               for team_name, team_config in module.spark_teams.team_configs : {
+#                 name            = team_config.name
+#                 namespace       = team_config.namespace
+#                 serviceAccount  = team_config.service_account
+#                 roleArn         = team_config.role_arn
+#                 workloadType    = "spark"
+#                 resourceQuota = {
+#                   "requests.cpu"              = "50"
+#                   "requests.memory"           = "100Gi"
+#                   "limits.cpu"                = "100"
+#                   "limits.memory"             = "200Gi"
+#                   "pods"                      = "50"
+#                   "services"                  = "5"
+#                   "persistentvolumeclaims"    = "5"
+#                 }
+#               }
+#             ]
+#           })
+#         }
+#       }
+#       destination = {
+#         server    = "https://kubernetes.default.svc"
+#         namespace = "argocd"
+#       }
+#       syncPolicy = {
+#         automated = {
+#           prune    = true
+#           selfHeal = true
+#         }
+#         syncOptions = [
+#           "CreateNamespace=true",
+#           "RespectIgnoreDifferences=true"
+#         ]
+#         retry = {
+#           limit = 5
+#           backoff = {
+#             duration    = "5s"
+#             factor      = 2
+#             maxDuration = "3m"
+#           }
+#         }
+#       }
+#     }
+#   })
 
-  depends_on = [module.spark_teams]
-}
+#   depends_on = [module.spark_teams]
+# }
 
 #---------------------------------------------------------------
 # Spark Jobs Pod Identity (for Spark Applications)  

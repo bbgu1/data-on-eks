@@ -61,8 +61,13 @@ output "karpenter_node_instance_profile_name" {
 }
 
 output "karpenter_node_iam_role_arn" {
-  description = "Karpenter node IAM role ARN for access entries"
+  description = "Karpenter node IAM role ARN"
   value = module.karpenter.iam_role_arn
+}
+
+output "karpenter_node_iam_role_name" {
+  description = "Karpenter node IAM role name"
+  value = module.karpenter.iam_role_name
 }
 
 output "ebs_csi_pod_identity_role_arn" {

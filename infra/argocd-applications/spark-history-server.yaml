@@ -14,13 +14,20 @@ spec:
     chart: spark-history-server
     targetRevision: "1.5.1"
     helm:
-      values: |
+      # 1. Default values (lowest priority)
+      valuesObject:
         logStore:
           type: "s3"
           s3:
-            bucket: "${s3_bucket_name}"  
-            eventLogsPath: "${s3_event_log_path}" 
             irsaRoleArn: "${shs_role_arn}"
+
+      %{~ if length(additional_value_files) > 0 ~}
+      # 2. User overrides (higher priority) - only if files are provided
+      valueFiles:
+        %{~ for value_file in additional_value_files ~}
+        - ${value_file}
+        %{~ endfor ~}
+      %{~ endif ~}
   destination:
     server: https://kubernetes.default.svc
     namespace: spark-history-server
