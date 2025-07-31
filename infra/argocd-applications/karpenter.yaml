@@ -16,7 +16,8 @@ spec:
     repository_password: ${repository_password}
     targetRevision: "1.6.0"
     helm:
-      valuesObject: ${merged_values}
+      values: |
+${indent(8, merged_values_yaml)}
 
   destination:
     server: https://kubernetes.default.svc

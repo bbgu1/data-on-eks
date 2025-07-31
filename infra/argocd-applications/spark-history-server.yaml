@@ -14,7 +14,8 @@ spec:
     chart: spark-history-server
     targetRevision: "1.5.1"
     helm:
-      valuesObject: ${merged_values}
+      values: |
+${indent(8, merged_values_yaml)}
   destination:
     server: https://kubernetes.default.svc
     namespace: spark-history-server
