@@ -133,7 +133,7 @@ data "aws_iam_policy_document" "spark_jobs" {
 ```hcl
 module "teams" {
   source = "../../../infra/terraform/teams"
-  
+
   cluster_name = module.eks.cluster_name
   teams = {
     my-team = {
@@ -178,11 +178,11 @@ resource "kubectl_manifest" "teams_app" {
 module "spark_team_irsa" {
   for_each = toset(local.teams)
   source   = "aws-ia/eks-blueprints-addon/aws"
-  
+
   create_release = false
   create_role    = true
   role_name      = "${local.name}-${each.value}"
-  
+
   oidc_providers = {
     this = {
       provider_arn    = module.eks.oidc_provider_arn
@@ -199,7 +199,7 @@ module "spark_team_irsa" {
 # Reusable across all blueprints
 module "teams" {
   source = "../../../infra/terraform/teams"
-  
+
   cluster_name = module.eks.cluster_name
   teams = var.teams  # Defined once, reused everywhere
 }

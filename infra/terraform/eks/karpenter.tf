@@ -23,3 +23,37 @@ module "karpenter" {
 
   tags = local.tags
 }
+
+# Note: Karpenter is deployed via Helm release instead of ArgoCD due to OCI registry authentication issues.
+# ArgoCD had trouble authenticating with OCI registries (oci://public.ecr.aws/karpenter)
+# while Terraform Helm provider handles OCI authentication seamlessly.
+resource "helm_release" "karpenter" {
+  name             = "karpenter"
+  namespace        = "karpenter"
+  create_namespace = true
+  repository       = "oci://public.ecr.aws/karpenter"
+  chart            = "karpenter"
+  version          = "1.6.1"
+  wait             = false
+
+  values = [
+    <<-EOT
+    nodeSelector:
+      karpenter.sh/controller: 'true'
+    settings:
+      clusterName: ${module.eks.cluster_name}
+      clusterEndpoint: ${module.eks.cluster_endpoint}
+      interruptionQueue: ${module.karpenter.queue_name}
+    tolerations:
+      - key: CriticalAddonsOnly
+        operator: Exists
+      - key: karpenter.sh/controller
+        operator: Exists
+        effect: NoSchedule
+    webhook:
+      enabled: false
+    EOT
+  ]
+
+  depends_on = [module.karpenter]
+}

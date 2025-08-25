@@ -148,15 +148,15 @@ module "spark_teams" {
 # }
 
 #---------------------------------------------------------------
-# Spark Jobs Pod Identity (for Spark Applications)  
+# Spark Jobs Pod Identity (for Spark Applications)
 # NOTE: Team-specific roles are now managed by the teams module
 #---------------------------------------------------------------
 
 # IAM Policy for Spark Jobs (used by teams module)
 data "aws_iam_policy_document" "spark_jobs" {
   statement {
-    sid       = "S3Access"
-    effect    = "Allow"
+    sid    = "S3Access"
+    effect = "Allow"
     resources = [
       module.s3_bucket.s3_bucket_arn,
       "${module.s3_bucket.s3_bucket_arn}/*"
@@ -164,7 +164,7 @@ data "aws_iam_policy_document" "spark_jobs" {
 
     actions = [
       "s3:DeleteObject",
-      "s3:DeleteObjectVersion", 
+      "s3:DeleteObjectVersion",
       "s3:GetObject",
       "s3:ListBucket",
       "s3:PutObject",
@@ -179,7 +179,7 @@ data "aws_iam_policy_document" "spark_jobs" {
     actions = [
       "logs:CreateLogGroup",
       "logs:CreateLogStream",
-      "logs:DescribeLogGroups", 
+      "logs:DescribeLogGroups",
       "logs:DescribeLogStreams",
       "logs:PutLogEvents",
     ]

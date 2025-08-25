@@ -3,17 +3,22 @@ variable "oidc_provider_arn" {
   type        = string
 }
 
-variable "enable_karpenter" {
-  description = "Enable Karpenter add-on"
-  type        = bool
-  default     = false
+# Karpenter node IAM role comes from EKS module output
+# No need for separate variable
+
+variable "cluster_name" {
+  description = "The name of the EKS cluster"
+  type        = string
 }
 
-variable "karpenter_helm_config" {
-  description = "Helm configuration for Karpenter"
-  type        = any
-  default     = {}
+variable "karpenter_node_iam_role_name" {
+  description = "The name of the Karpenter node IAM role (from EKS module output)"
+  type        = string
 }
+
+# Karpenter is now deployed via Helm release in EKS module
+# variable "enable_karpenter" - REMOVED
+# variable "karpenter_helm_config" - REMOVED
 
 #---------------------------------------------------
 # SPARK K8S OPERATOR
@@ -267,11 +272,8 @@ variable "enable_karpenter_resources" {
   default     = false
 }
 
-variable "karpenter_resources_helm_config" {
-  description = "Karpenter Resources Helm Chart config"
-  type        = any
-  default     = {}
-}
+# Note: Karpenter Resources are hardcoded ArgoCD applications
+# No Helm config needed - just enable/disable
 
 #---------------------------------------------------
 # Trino

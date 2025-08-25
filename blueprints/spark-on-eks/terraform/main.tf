@@ -102,32 +102,44 @@ module "eks_blueprint" {
 module "argocd_addons" {
   source = "../../../infra/terraform/argocd-addons"
 
-    oidc_provider_arn = module.eks_blueprint.oidc_provider_arn
+  oidc_provider_arn             = module.eks_blueprint.oidc_provider_arn
+  cluster_name                  = module.eks_blueprint.cluster_name
+  karpenter_node_iam_role_name  = module.eks_blueprint.karpenter_node_iam_role_name
 
-    enable_spark_history_server = true
-    spark_history_server_helm_config = {
-      values = [
-        <<-EOT
+  enable_spark_history_server = true
+  spark_history_server_helm_config = {
+    values = [
+      <<-EOT
         logStore:
           type: "s3"
           s3:
-            bucket: ${module.s3_bucket.s3_bucket_id} 
-            eventLogsPath: ${aws_s3_object.this.key}
+            bucket: ${module.s3_bucket.s3_bucket_id}
+            eventLogsPath: "spark-event-logs/"
         EOT
-      ]
-    }
+    ]
+  }
 
-    enable_karpenter = true
-    karpenter_helm_config = {
-      values = [
-        <<-EOT
-        settings:
-          clusterName: ${module.eks_blueprint.cluster_name}
-          clusterEndpoint: ${module.eks_blueprint.cluster_endpoint}
-          interruptionQueue: ${module.eks_blueprint.karpenter_sqs_queue_name}
-        EOT
-      ]
-    }
+  # Spark Operator
+  enable_spark_operator = true
+  spark_operator_helm_config = {
+    values = [
+      <<-EOT
+        batchScheduler:
+          enable: true
+          default: "yunikorn"
+        spark:
+          jobNamespaces:
+            - ""  # Empty string allows all namespaces
+          serviceAccount:
+            create: false
+          rbac:
+            create: false
+      EOT
+    ]
+  }
+
+  # Apache YuniKorn Scheduler
+  enable_yunikorn = true
+
+  enable_karpenter_resources = true
 }
-
-

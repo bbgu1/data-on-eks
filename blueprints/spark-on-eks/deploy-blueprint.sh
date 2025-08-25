@@ -28,69 +28,69 @@ print_error() {
 # Check prerequisites
 check_prerequisites() {
     print_status "Checking prerequisites..."
-    
+
     command -v terraform >/dev/null 2>&1 || { print_error "terraform is required but not installed."; exit 1; }
     command -v kubectl >/dev/null 2>&1 || { print_error "kubectl is required but not installed."; exit 1; }
     command -v aws >/dev/null 2>&1 || { print_error "aws cli is required but not installed."; exit 1; }
-    
+
     # Check AWS credentials
     aws sts get-caller-identity >/dev/null 2>&1 || { print_error "AWS credentials not configured."; exit 1; }
-    
+
     print_status "Prerequisites check passed"
 }
 
 # Deploy infrastructure
 deploy_base_infrastructure() {
     print_status "Deploying $BLUEPRINT_NAME infrastructure..."
-    
+
     cd $TERRAFORM_DIR
-    
+
     # Initialize Terraform
     print_status "Initializing Terraform..."
     terraform init
-    
+
     # Plan and deploy VPC and EKS first
     print_status "Planning VPC and EKS deployment..."
     terraform plan -target=module.vpc_blueprint -target=module.eks_blueprint
-    
+
     print_status "Deploying VPC and EKS cluster..."
     terraform apply -target=module.vpc_blueprint -target=module.eks_blueprint -auto-approve
 
     # Update kubeconfig
     print_status "Updating kubeconfig..."
     aws eks update-kubeconfig --region $AWS_REGION --name $BLUEPRINT_NAME
-  
+
 }
 
 # Deploy infrastructure
 deploy_addons() {
     print_status "Deploying $BLUEPRINT_NAME ArgoCD Addons..."
-    
+
     # Deploy remaining resources
     print_status "Deploying remaining resources and ArgoCD Addons..."
     terraform apply -auto-approve
-    
+
     cd ..
 }
 
 # Wait for ArgoCD to be ready
 wait_for_argocd() {
     print_status "Waiting for ArgoCD to be ready..."
-    
+
     kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n argocd
     kubectl wait --for=condition=available --timeout=300s deployment/argocd-repo-server -n argocd
     kubectl wait --for=condition=available --timeout=300s deployment/argocd-applicationset-controller -n argocd
-    
+
     print_status "ArgoCD is ready"
 }
 
 # Get ArgoCD credentials
 get_argocd_credentials() {
     print_status "Getting ArgoCD credentials..."
-    
+
     # Get initial admin password
     ARGOCD_PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d)
-    
+
     echo ""
     echo "========================================="
     echo "ArgoCD Access Information"
@@ -109,22 +109,22 @@ get_argocd_credentials() {
 # Verify deployment
 verify_deployment() {
     print_status "Verifying deployment..."
-    
+
     echo ""
     echo "========================================="
     echo "Cluster Information"
     echo "========================================="
     kubectl get nodes
     echo ""
-    
+
     echo "ArgoCD Applications:"
     kubectl get applications -n argocd
     echo ""
-    
+
     echo "Spark Operator Status:"
     kubectl get pods -n spark-operator 2>/dev/null || echo "Spark operator not yet deployed"
     echo ""
-    
+
     echo "Karpenter Status:"
     kubectl get pods -n karpenter 2>/dev/null || echo "Karpenter not yet deployed"
     echo ""
@@ -160,7 +160,7 @@ print_next_steps() {
 # Main execution
 main() {
     print_status "Starting $BLUEPRINT_NAME deployment..."
-    
+
     check_prerequisites
     deploy_base_infrastructure
     wait_for_argocd
@@ -168,7 +168,7 @@ main() {
     deploy_addons
     verify_deployment
     print_next_steps
-    
+
     print_status "Deployment completed successfully!"
 }
 

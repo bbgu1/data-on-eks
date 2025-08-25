@@ -50,15 +50,20 @@ output "spark_teams_associations" {
 
 output "s3_bucket_name" {
   description = "S3 Bucket for Spark Logs"
-  value = module.s3_bucket.s3_bucket_id
+  value       = module.s3_bucket.s3_bucket_id
 }
 
 output "karpenter_sqs_queue_name" {
   description = "Karpenter SQS interruption queue name"
-  value = module.eks_blueprint.karpenter_sqs_queue_name
+  value       = module.eks_blueprint.karpenter_sqs_queue_name
 }
 
-output "karpenter_node_node_iam_role_arn" {
+output "karpenter_node_iam_role_name" {
+  description = "Karpenter node IAM Role name"
+  value       = module.eks_blueprint.karpenter_node_iam_role_name
+}
+
+output "karpenter_node_iam_role_arn" {
   description = "Karpenter node IAM Role ARN"
   value       = module.eks_blueprint.karpenter_node_iam_role_arn
 }

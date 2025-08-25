@@ -104,4 +104,3 @@ variable "enable_yunikorn" {
   type        = bool
   default     = true
 }
-

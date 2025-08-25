@@ -1,0 +1,6 @@
+# Karpenter Resources are deployed directly via Terraform kubectl_manifest
+# Not via ArgoCD since they are infrastructure-level resources
+# See: infra/terraform/argocd-addons/karpenter-resources.tf
+#
+# This approach is ONLY for Karpenter Resources
+# All other addons use the standard ArgoCD + Helm approach
