@@ -817,6 +817,7 @@ module "eks_data_addons" {
 # EKS Blueprints Addons
 #---------------------------------------------------------------
 module "eks_blueprints_addons" {
+  depends_on = [module.ebs_csi_driver_irsa, module.s3_csi_driver_irsa]
   source  = "aws-ia/eks-blueprints-addons/aws"
   version = "~> 1.20"
 
@@ -824,6 +825,22 @@ module "eks_blueprints_addons" {
   cluster_endpoint  = module.eks.cluster_endpoint
   cluster_version   = module.eks.cluster_version
   oidc_provider_arn = module.eks.oidc_provider_arn
+
+  eks_addons = {
+    aws-ebs-csi-driver = {
+      service_account_role_arn = module.ebs_csi_driver_irsa.iam_role_arn
+      most_recent              = true
+    }
+
+    aws-mountpoint-s3-csi-driver = {
+      service_account_role_arn = module.s3_csi_driver_irsa.iam_role_arn
+    }
+
+     amazon-cloudwatch-observability = {
+      preserve                 = true
+      service_account_role_arn = aws_iam_role.cloudwatch_observability_role.arn
+    }
+  }
 
   #---------------------------------------
   # Karpenter Autoscaler for EKS Cluster

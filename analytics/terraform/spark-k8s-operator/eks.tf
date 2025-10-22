@@ -35,20 +35,9 @@ module "eks" {
     }
 
     kube-proxy = {}
-    aws-ebs-csi-driver = {
-      service_account_role_arn = module.ebs_csi_driver_irsa.iam_role_arn
-      most_recent              = true
-    }
-
-    aws-mountpoint-s3-csi-driver = {
-      service_account_role_arn = module.s3_csi_driver_irsa.iam_role_arn
-    }
-
+   
     metrics-server = {}
-    amazon-cloudwatch-observability = {
-      preserve                 = true
-      service_account_role_arn = aws_iam_role.cloudwatch_observability_role.arn
-    }
+
   }
 
   vpc_id = module.vpc.vpc_id
